@@ -80,7 +80,7 @@ STATISTIC(NumPromoted  , "Number of memory locations promoted to registers");
 static cl::opt<bool>
 DisablePromotion("disable-slicm-promotion", cl::Hidden,
                  cl::desc("Disable memory promotion in SLICM pass"));
-
+/*
 namespace {
   struct SLICM : public LoopPass {
     static char ID; // Pass identification, replacement for typeid
@@ -202,7 +202,7 @@ namespace {
                          SmallVectorImpl<Instruction*> &InsertPts);
   };
 }
-
+*/
 char SLICM::ID = 0;
 /*
 // 583 - commented out INITIALIZE_ macros & createSLICMPass
