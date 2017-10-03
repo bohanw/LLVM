@@ -1,0 +1,16 @@
+    // Assumes that I is a load instruction
+    for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i){
+      Value *V = I.getOperand(i);
+      Instruction *temp = dyn_cast<Instruction>(V);
+      for(Value::use_iterator UI = temp->use_begin(), E = temp->use_end(); UI != E; ++UI){
+        Instruction *User = dyn_cast<Instruction>(*UI);
+        if(CurLoop->contains(User)){
+          if(isa<StoreInst>(User)){
+            //errs() << "Dependent instruction " << *User << "\n";
+            return false;
+          }
+        }
+      }
+    }
+    errs() << "The inst = " << I << " is ELIGIBLE LOAD" << "\n";
+    return true;

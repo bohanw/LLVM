@@ -1,0 +1,8 @@
+#! /bin/bash
+
+DESCRIPTION="simple loop benchmark"
+SETUP="";
+PREFIX="";
+ARGS="> OUT";
+CHECK="diff OUT ${BENCH_DIR}/output1/OUT"
+CLEANUP="rm -f OUT";

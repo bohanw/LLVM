@@ -1,0 +1,37 @@
+## Remove the output files
+rm llvmprof.out
+rm -rf *bc
+rm -rf *profile*
+rm -rf *ll
+
+
+## Get the simple profile data
+clang -emit-llvm -o correct1.bc -c correct1.c
+opt -loop-simplify < correct1.bc > correct1.ls.bc
+opt -insert-edge-profiling correct1.ls.bc -o correct1.profile.ls.bc
+llc correct1.profile.ls.bc -o correct1.profile.ls.s
+g++ -o correct1.profile correct1.profile.ls.s <LLVM_OBJ_ROOT>/Release+Asserts/lib/libprofile_rt.so
+./correct1.profile
+
+## Get Lamp profile
+opt -load <YOUR_PASS_FOLDER>/Release+Asserts/lib/mypass.so -lamp-insts -insert-lamp-profiling -insert-lamp-loop-profiling -insert-lamp-init < correct1.ls.bc > correct1.lamp.bc 
+llc < correct1.lamp.bc > correct1.lamp.s
+g++ -o correct1.lamp.exe correct1.lamp.s <YOUR_PASS_FOLDER>/tools/lamp-profiler/lamp_hooks.o
+./correct1.lamp.exe
+
+
+## Run your pass
+opt -basicaa -load <YOUR_PASS_FOLDER>/Release+Asserts/lib/mypass.so -lamp-inst-cnt -lamp-map-loop -lamp-load-profile -profile-loader -profile-info-file=llvmprof.out -slicm < correct1.ls.bc > correct1.slicm.bc
+
+## Compare original and modified IR
+llvm-dis correct1.ls.bc
+llvm-dis correct1.slicm.bc
+
+## Generate executables and ensure that your modified IR generates correct output
+llc correct1.bc -o correct1.s
+g++ -o correct1 correct1.s
+llc correct1.slicm.bc -o correct1.slicm.s
+g++ -o correct1.slicm correct1.slicm.s
+
+## Once you are sure that your pass works then use mem2reg pass to convert some intermediate load stores to register transfers
+#opt -basicaa -load <YOUR_PASS_FOLDER>/Release+Asserts/lib/mypass.so -lamp-inst-cnt -lamp-map-loop -lamp-load-profile -profile-loader -profile-info-file=llvmprof.out -slicm -mem2reg < correct1.ls.bc > correct1.slicm.bc
