@@ -132,6 +132,7 @@ namespace {
                              // instructions with side effects.
     DenseMap<Loop*, AliasSetTracker*> LoopToAliasSetMap;
 
+    LAMPLoadProfile *LLP;
     /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
     void cloneBasicBlockAnalysis(BasicBlock *From, BasicBlock *To, Loop *L);
 
@@ -200,5 +201,7 @@ namespace {
     void PromoteAliasSet(AliasSet &AS,
                          SmallVectorImpl<BasicBlock*> &ExitBlocks,
                          SmallVectorImpl<Instruction*> &InsertPts);
+
+    bool isEligibleLoad(Instruction &I);
   };
 }

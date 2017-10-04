@@ -63,23 +63,23 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 #include <algorithm>
-
+#include "slicm.h"
 // SLICM includes
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "LAMP/LAMPLoadProfile.h"
 #include "llvm/Analysis/ProfileInfo.h"
 
 using namespace llvm;
-
+/*
 STATISTIC(NumSunk      , "Number of instructions sunk out of loop");
 STATISTIC(NumHoisted   , "Number of instructions hoisted out of loop");
 STATISTIC(NumMovedLoads, "Number of load insts hoisted or sunk");
 STATISTIC(NumMovedCalls, "Number of call insts hoisted or sunk");
 STATISTIC(NumPromoted  , "Number of memory locations promoted to registers");
-
-static cl::opt<bool>
-DisablePromotion("disable-slicm-promotion", cl::Hidden,
-                 cl::desc("Disable memory promotion in SLICM pass"));
+*/
+//static cl::opt<bool>
+//DisablePromotion("disable-slicm-promotion", cl::Hidden,
+ //                cl::desc("Disable memory promotion in SLICM pass"));
 /*
 namespace {
   struct SLICM : public LoopPass {
@@ -217,6 +217,29 @@ INITIALIZE_PASS_END(SLICM, "slicm", "Loop Invariant Code Motion", false, false)
 Pass *llvm::createSLICMPass() { return new SLICM(); }
 */
 static RegisterPass<SLICM> X("slicm", "Speculative Loop Invariant Code Motion");
+// return true if the given load is an eligible load to
+// be hoisted out of loop body
+
+bool SLICM::isEligibleLoad(Instruction &I) {
+  if(I.getOpcode() == Instruction::Load) {
+    for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i){
+      Value *V = I.getOperand(i);
+      Instruction *temp = dyn_cast<Instruction>(V);
+      for(Value::use_iterator UI = temp->use_begin(), E = temp->use_end(); UI != E; ++UI){
+        Instruction *User = dyn_cast<Instruction>(*UI);
+        if(CurLoop->contains(User)){
+          if(isa<StoreInst>(User)){
+            errs()<< "Dependent instruction " << *User << "\n";
+            return false;
+          }
+        }
+      }
+    }
+    errs() << "The inst = " << I << " is ELIGIBLE LOAD" << "\n";  
+    return true;
+  }
+  else return false;
+}
 
 /// Hoist expressions out of the specified loop. Note, alias info for inner
 /// loop is not preserved so it is not a good idea to run SLICM multiple
@@ -234,6 +257,12 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   TLI = &getAnalysis<TargetLibraryInfo>();
 
   CurAST = new AliasSetTracker(*AA);
+  LLP = &getAnalysis<LAMPLoadProfile>();
+  std::map<std::pair<Instruction*, Instruction*>*, unsigned int> dep_count_map = LLP->DepToTimesMap; 
+  
+  //flag of whether to redo the block, must accompany the ld instruction
+  std::map<Instruction*, bool> ld_flag_map;
+
   // Collect Alias info from subloops.
   for (Loop::iterator LoopItr = L->begin(), LoopItrE = L->end();
        LoopItr != LoopItrE; ++LoopItr) {
@@ -265,16 +294,21 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     if (LI->getLoopFor(BB) == L)        // Ignore blocks in subloops.
       CurAST->add(*BB);                 // Incorporate the specified basic block
   }
-
+  //
   MayThrow = false;
   // TODO: We've already searched for instructions which may throw in subloops.
   // We may want to reuse this information.
   for (Loop::block_iterator BB = L->block_begin(), BBE = L->block_end();
-       (BB != BBE) && !MayThrow ; ++BB)
+       (BB != BBE) && !MayThrow ; ++BB){
     for (BasicBlock::iterator I = (*BB)->begin(), E = (*BB)->end();
-         (I != E) && !MayThrow; ++I)
-      MayThrow |= I->mayThrow();
+         (I != E) && !MayThrow; ++I) {
 
+    // Sample code for find eligible load
+        // elig_ld = isEligibleLoad(*I);
+ 
+      MayThrow |= I->mayThrow();
+    }
+  }
   // We want to visit all of the instructions in this loop... that are not parts
   // of our subloops (they have already had their invariants hoisted out of
   // their loop, into this loop, so there is no need to process the BODIES of
@@ -393,6 +427,8 @@ void SLICM::HoistRegion(DomTreeNode *N) {
         continue;
       }
 
+      bool elig_ld = false;
+      elig_ld = isEligibleLoad(I);
       // Try hoisting the instruction out to the preheader.  We can only do this
       // if all of the operands of the instruction are loop invariant and if it
       // is safe to hoist the instruction.
