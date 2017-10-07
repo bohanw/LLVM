@@ -258,10 +258,9 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   CurAST = new AliasSetTracker(*AA);
   LLP = &getAnalysis<LAMPLoadProfile>();
-  std::map<std::pair<Instruction*, Instruction*>*, unsigned int> dep_count_map = LLP->DepToTimesMap; 
-  
-  //flag of whether to redo the block, must accompany the ld instruction
-  std::map<Instruction*, bool> ld_flag_map;
+
+
+
 
   // Collect Alias info from subloops.
   for (Loop::iterator LoopItr = L->begin(), LoopItrE = L->end();
@@ -427,19 +426,29 @@ void SLICM::HoistRegion(DomTreeNode *N) {
         continue;
       }
 
-      bool elig_ld = false;
-      elig_ld = isEligibleLoad(I);
-      //TODO: 
+      bool elig_ld =  isEligibleLoad(I);
+      //TODO: push eligible load to eligible load vector,
+      //Map to flag instruction?
       if(elig_ld){
-        
+
+
       }
       // Try hoisting the instruction out to the preheader.  We can only do this
       // if all of the operands of the instruction are loop invariant and if it
       // is safe to hoist the instruction.
       //
-      if (CurLoop->hasLoopInvariantOperands(&I) && canSinkOrHoistInst(I) &&
-          isSafeToExecuteUnconditionally(I))
-        hoist(I);
+      int hoistValue = canSinkOrHoistInst(I);
+      if (CurLoop->hasLoopInvariantOperands(&I)  &&
+          isSafeToExecuteUnconditionally(I)){
+
+        if(hoistValue != 0) {
+          if(hoistValue == 1) hoist(I);
+          if(hoistValue == 2){
+            //speculative hoisting
+          }
+        }
+      }
+        
     }
 
   const std::vector<DomTreeNode*> &Children = N->getChildren();
@@ -450,38 +459,50 @@ void SLICM::HoistRegion(DomTreeNode *N) {
 /// canSinkOrHoistInst - Return true if the hoister and sinker can handle this
 /// instruction.
 ///
-bool SLICM::canSinkOrHoistInst(Instruction &I) {
+int SLICM::canSinkOrHoistInst(Instruction &I) {
   // Loads have extra constraints we have to verify before we can hoist them.
+  int hoistValue = 0;
   if (LoadInst *LI = dyn_cast<LoadInst>(&I)) {
-    if (!LI->isUnordered())
-      return false;        // Don't hoist volatile/atomic loads!
+    if (!LI->isUnordered()){
+      hoistValue = 0;
+      return hoistValue;        // Don't hoist volatile/atomic loads!
+    }
 
     // Loads from constant memory are always safe to move, even if they end up
     // in the same alias set as something that ends up being modified.
-    if (AA->pointsToConstantMemory(LI->getOperand(0)))
-      return true;
-    if (LI->getMetadata("invariant.load"))
-      return true;
+    if (AA->pointsToConstantMemory(LI->getOperand(0))){
+      hoistValue = 1
+      return hoistValue;
+    }
+    if (LI->getMetadata("invariant.load")){
+      hoistValue = 1;
+      return hoistValue;
+    }
 
     // Don't hoist loads which have may-aliased stores in loop.
-    //TODO: MODIFY to hoist load
+    //TODO: MODIFY to allow speculative hoist load, hoistValue = 2;
     
     uint64_t Size = 0;
     if (LI->getType()->isSized())
-      Size = AA->getTypeStoreSize(LI->getType());
-    return !pointerInvalidatedByLoop(LI->getOperand(0), Size,
-                                     LI->getMetadata(LLVMContext::MD_tbaa));
-    
-
+      Size = AA->getTypeStoreSize(LI->getType());{
+      hoistValue = 0;//for standard LICM
+    //return !pointerInvalidatedByLoop(LI->getOperand(0), Size,
+      //                               LI->getMetadata(LLVMContext::MD_tbaa));
+      return hoistValue;
+    }
   } else if (CallInst *CI = dyn_cast<CallInst>(&I)) {
     // Don't sink or hoist dbg info; it's legal, but not useful.
-    if (isa<DbgInfoIntrinsic>(I))
-      return false;
+    if (isa<DbgInfoIntrinsic>(I)){
+      hoistValue = 0;
+      return hoistValue;
+    }
 
     // Handle simple cases by querying alias analysis.
     AliasAnalysis::ModRefBehavior Behavior = AA->getModRefBehavior(CI);
-    if (Behavior == AliasAnalysis::DoesNotAccessMemory)
-      return true;
+    if (Behavior == AliasAnalysis::DoesNotAccessMemory){
+      hoistValue = 1;
+      return hoistValue;
+    }
     if (AliasAnalysis::onlyReadsMemory(Behavior)) {
       // If this call only reads from memory and there are no writes to memory
       // in the loop, we can hoist or sink the call as appropriate.
@@ -494,13 +515,16 @@ bool SLICM::canSinkOrHoistInst(Instruction &I) {
           break;
         }
       }
-      if (!FoundMod) return true;
+      if (!FoundMod) {
+        hoistValue = 1;
+        return hoistValue;
+      }
     }
 
     // FIXME: This should use mod/ref information to see if we can hoist or
     // sink the call.
-
-    return false;
+    hoistValue = 0;
+    return hoistValue;
   }
 
   // Only these instructions are hoistable/sinkable.
@@ -508,10 +532,14 @@ bool SLICM::canSinkOrHoistInst(Instruction &I) {
       !isa<GetElementPtrInst>(I) && !isa<CmpInst>(I) &&
       !isa<InsertElementInst>(I) && !isa<ExtractElementInst>(I) &&
       !isa<ShuffleVectorInst>(I) && !isa<ExtractValueInst>(I) &&
-      !isa<InsertValueInst>(I))
-    return false;
-
-  return isSafeToExecuteUnconditionally(I);
+      !isa<InsertValueInst>(I)) {
+      hoistValue = 0;
+      return hoistValue;
+  }
+  if(isSafeToExecuteUnconditionally(I)) 
+       hoistValue = 1;
+  else hoistValue = 0;
+  return hoistValue;
 }
 
 /// isNotUsedInLoop - Return true if the only users of this instruction are

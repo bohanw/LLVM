@@ -132,6 +132,12 @@ namespace {
                              // instructions with side effects.
     DenseMap<Loop*, AliasSetTracker*> LoopToAliasSetMap;
 
+    std::map<std::pair<Instruction*, Instruction*>*, unsigned int> dep_count_map = LLP->DepToTimesMap; 
+  
+  //flag of whether to redo the block, must accompany the ld instruction
+  //Key: eligible loads -> Value bool value
+    //std::map<Instruction*, Instruction*> ld_flag_map;
+    std::vector<Instruction*> eligibleLoads;
     LAMPLoadProfile *LLP;
     /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
     void cloneBasicBlockAnalysis(BasicBlock *From, BasicBlock *To, Loop *L);
