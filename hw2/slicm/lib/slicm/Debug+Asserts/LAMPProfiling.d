@@ -1,5 +1,5 @@
-/home/bohanw/583/hw2/slicm/lib/slicm/Release+Asserts/LAMPProfiling.o \
-  /home/bohanw/583/hw2/slicm/lib/slicm/Release+Asserts/LAMPProfiling.d: \
+/home/bohanw/583/hw2/slicm/lib/slicm/Debug+Asserts/LAMPProfiling.o \
+  /home/bohanw/583/hw2/slicm/lib/slicm/Debug+Asserts/LAMPProfiling.d: \
   LAMPProfiling.cpp /opt/llvm-source/include/llvm/IR/Constants.h \
   /opt/llvm-source/include/llvm/ADT/APFloat.h \
   /opt/llvm-source/include/llvm/ADT/APInt.h \

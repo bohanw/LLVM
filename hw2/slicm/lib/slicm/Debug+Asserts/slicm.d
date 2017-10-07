@@ -1,5 +1,5 @@
-/home/bohanw/583/hw2/slicm/lib/slicm/Release+Asserts/slicm.o \
-  /home/bohanw/583/hw2/slicm/lib/slicm/Release+Asserts/slicm.d: slicm.cpp \
+/home/bohanw/583/hw2/slicm/lib/slicm/Debug+Asserts/slicm.o \
+  /home/bohanw/583/hw2/slicm/lib/slicm/Debug+Asserts/slicm.d: slicm.cpp \
   /opt/llvm-source/include/llvm/Transforms/Scalar.h \
   /opt/llvm-source/include/llvm/ADT/Statistic.h \
   /opt/llvm-source/include/llvm/Support/Atomic.h \

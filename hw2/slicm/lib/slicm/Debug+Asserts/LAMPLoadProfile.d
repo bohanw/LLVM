@@ -1,5 +1,5 @@
-/home/bohanw/583/hw2/slicm/lib/slicm/Release+Asserts/LAMPLoadProfile.o \
-  /home/bohanw/583/hw2/slicm/lib/slicm/Release+Asserts/LAMPLoadProfile.d: \
+/home/bohanw/583/hw2/slicm/lib/slicm/Debug+Asserts/LAMPLoadProfile.o \
+  /home/bohanw/583/hw2/slicm/lib/slicm/Debug+Asserts/LAMPLoadProfile.d: \
   LAMPLoadProfile.cpp /opt/llvm-source/include/llvm/IR/Module.h \
   /opt/llvm-source/include/llvm/ADT/OwningPtr.h \
   /opt/llvm-source/include/llvm/Support/Compiler.h \

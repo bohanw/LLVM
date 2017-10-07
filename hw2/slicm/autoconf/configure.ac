@@ -5,7 +5,7 @@ AC_INIT([[[slicm]]],[[[1.00]]],[bugs@yourdomain])
 
 dnl Identify where LLVM source tree is
 LLVM_SRC_ROOT="/opt/llvm-source/"
-LLVM_OBJ_ROOT="/opt/llvm/"
+LLVM_OBJ_ROOT="/opt/llvm-debug"
 
 dnl Find absolute paths to LLVM source and object trees
 LLVM_ABS_SRC_ROOT="`cd $srcdir ; cd $LLVM_SRC_ROOT ; pwd`"

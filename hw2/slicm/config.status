@@ -607,7 +607,7 @@ S["ENABLE_VISIBILITY_INLINES_HIDDEN"]="1"
 S["OCAML_LIBDIR"]="/usr/local/lib/ocaml"
 S["ALL_BINDINGS"]="ocaml"
 S["BINDINGS_TO_BUILD"]="ocaml "
-S["LLVM_CONFIGTIME"]="Mon Oct  2 00:55:05 EDT 2017"
+S["LLVM_CONFIGTIME"]="Fri Oct  6 16:24:06 EDT 2017"
 S["LLVM_MANDIR"]="/usr/local/man"
 S["LLVM_INFODIR"]="/usr/local/info"
 S["LLVM_INCLUDEDIR"]="/usr/local/include"
@@ -749,7 +749,7 @@ S["LDFLAGS"]=""
 S["CFLAGS"]="-g -O2"
 S["CC"]="clang"
 S["LLVM_VERSION"]="3.3"
-S["LLVM_OBJ"]="/opt/llvm"
+S["LLVM_OBJ"]="/opt/llvm-debug"
 S["LLVM_SRC"]="/opt/llvm-source"
 S["target_alias"]=""
 S["host_alias"]=""
@@ -786,7 +786,7 @@ S["DEFS"]="-DPACKAGE_NAME=\\\"\\[slicm\\]\\\" -DPACKAGE_TARNAME=\\\"--slicm--\\\
 "IN_CMATH=1 -DHAVE_STD_ISINF_IN_CMATH=1 -DHAVE_STDLIB_H=1 -DHAVE_UNISTD_H=1 -DHAVE_SYS_PARAM_H=1 -DHAVE_GETPAGESIZE=1 -DHAVE_MMAP=1 -DHAVE_MMAP_FILE="\
 "/\\*\\*/ -DLLVM_HAS_ATOMICS=1 -DHAVE___DSO_HANDLE=1 -DLLVM_PREFIX=\\\"/usr/local\\\" -DLLVM_BINDIR=\\\"/usr/local/bin\\\" -DLLVM_LIBDIR=\\\"/usr/local/lib\\\" -DL"\
 "LVM_DATADIR=\\\"/usr/local/share/llvm\\\" -DLLVM_DOCSDIR=\\\"/usr/local/share/doc/llvm\\\" -DLLVM_ETCDIR=\\\"/usr/local/etc/llvm\\\" -DLLVM_INCLUDEDIR=\\\"/usr/lo"\
-"cal/include\\\" -DLLVM_INFODIR=\\\"/usr/local/info\\\" -DLLVM_MANDIR=\\\"/usr/local/man\\\" -DLLVM_CONFIGTIME=\\\"Mon\\ Oct\\ \\ 2\\ 00:55:05\\ EDT\\ 2017\\\" -DLLVM_DE"\
+"cal/include\\\" -DLLVM_INFODIR=\\\"/usr/local/info\\\" -DLLVM_MANDIR=\\\"/usr/local/man\\\" -DLLVM_CONFIGTIME=\\\"Fri\\ Oct\\ \\ 6\\ 16:24:06\\ EDT\\ 2017\\\" -DLLVM_DE"\
 "FAULT_TARGET_TRIPLE=\\\"x86_64-unknown-linux-gnu\\\""
 S["mandir"]="${datarootdir}/man"
 S["localedir"]="${datarootdir}/locale"

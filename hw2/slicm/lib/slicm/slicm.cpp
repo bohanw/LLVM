@@ -429,6 +429,10 @@ void SLICM::HoistRegion(DomTreeNode *N) {
 
       bool elig_ld = false;
       elig_ld = isEligibleLoad(I);
+      //TODO: 
+      if(elig_ld){
+        
+      }
       // Try hoisting the instruction out to the preheader.  We can only do this
       // if all of the operands of the instruction are loop invariant and if it
       // is safe to hoist the instruction.
@@ -460,11 +464,15 @@ bool SLICM::canSinkOrHoistInst(Instruction &I) {
       return true;
 
     // Don't hoist loads which have may-aliased stores in loop.
+    //TODO: MODIFY to hoist load
+    
     uint64_t Size = 0;
     if (LI->getType()->isSized())
       Size = AA->getTypeStoreSize(LI->getType());
     return !pointerInvalidatedByLoop(LI->getOperand(0), Size,
                                      LI->getMetadata(LLVMContext::MD_tbaa));
+    
+
   } else if (CallInst *CI = dyn_cast<CallInst>(&I)) {
     // Don't sink or hoist dbg info; it's legal, but not useful.
     if (isa<DbgInfoIntrinsic>(I))

@@ -7,7 +7,7 @@ LLVM_SRC_ROOT = /opt/llvm-source
 
 # Set this variable to the top level directory where LLVM was built
 # (this is *not* the same as OBJ_ROOT as defined in LLVM's Makefile.config).
-LLVM_OBJ_ROOT = /opt/llvm
+LLVM_OBJ_ROOT = /opt/llvm-debug
 
 # Set the directory root of this project's source files
 PROJ_SRC_ROOT := $(subst //,/,/home/bohanw/583/hw2/slicm)

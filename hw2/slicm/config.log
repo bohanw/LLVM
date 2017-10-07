@@ -44,7 +44,7 @@ PATH: /snap/bin
 ## ----------- ##
 
 configure:2567: checking llvm-config
-configure:2573: result: /opt/llvm/Release+Asserts/bin/llvm-config
+configure:2573: result: /opt/llvm-debug/Release+Debug+Asserts/bin/llvm-config
 configure:2576: checking LLVM package version
 configure:2583: result: 3.3
 configure:2675: checking for clang
@@ -439,7 +439,7 @@ configure:7600: clang -o conftest -g -O2 -Wl,-export-dynamic   conftest.c  >&5
 configure:7600: $? = 0
 configure:7616: result: yes
 configure:7625: checking for compiler -Wl,--version-script option
-configure:7671: clang -o conftest -g -O2 -Wl,--version-script=/tmp/fooGGPSNt/export.map   conftest.c  >&5
+configure:7671: clang -o conftest -g -O2 -Wl,--version-script=/tmp/fooWiovgv/export.map   conftest.c  >&5
 configure:7671: $? = 0
 configure:7689: result: yes
 configure:7699: checking for an ANSI C-conforming const
@@ -486,7 +486,7 @@ configure:8882: checking whether libtool supports -dlopen/-dlpreopen
 configure:8894: result: yes
 configure:8911: checking for shl_load
 configure:8911: clang -o conftest -g -O2   conftest.c  >&5
-/tmp/conftest-oWV3Pz.o: In function `main':
+/tmp/conftest-jx8doh.o: In function `main':
 /home/bohanw/583/hw2/slicm/conftest.c:90: undefined reference to `shl_load'
 clang: error: linker command failed with exit code 1 (use -v to see invocation)
 configure:8911: $? = 1
@@ -1721,7 +1721,7 @@ configure:9656: $? = 0
 configure:9665: result: yes
 configure:9757: checking for library containing dlopen
 configure:9788: clang -o conftest -g -O2   conftest.c -lm  >&5
-/tmp/conftest-qa9rTf.o: In function `main':
+/tmp/conftest-tk46KL.o: In function `main':
 /home/bohanw/583/hw2/slicm/conftest.c:94: undefined reference to `dlopen'
 clang: error: linker command failed with exit code 1 (use -v to see invocation)
 configure:9788: $? = 1
@@ -3445,7 +3445,7 @@ configure:10847: checking for CrashReporterClient.h
 configure:10847: result: no
 configure:10858: checking __crashreporter_info__
 configure:10869: clang -o conftest -g -O2   conftest.c -lpthread -ldl -lm  >&5
-/tmp/conftest-xQb0Hh.o: In function `main':
+/tmp/conftest-tysDr0.o: In function `main':
 /home/bohanw/583/hw2/slicm/conftest.c:119: undefined reference to `__crashreporter_info__'
 clang: error: linker command failed with exit code 1 (use -v to see invocation)
 configure:10869: $? = 1
@@ -4375,7 +4375,7 @@ configure:11077: $? = 0
 configure:11077: result: yes
 configure:11089: checking for mktemp
 configure:11089: clang -o conftest -g -O2   conftest.c -lpthread -ldl -lm  >&5
-/tmp/conftest-SOaUyL.o: In function `main':
+/tmp/conftest-IUeHiw.o: In function `main':
 /home/bohanw/583/hw2/slicm/conftest.c:174: warning: the use of `mktemp' is dangerous, better use `mkstemp' or `mkdtemp'
 configure:11089: $? = 0
 configure:11089: result: yes
@@ -4433,7 +4433,7 @@ configure:11113: $? = 0
 configure:11113: result: yes
 configure:11113: checking for malloc_zone_statistics
 configure:11113: clang -o conftest -g -O2   conftest.c -lpthread -ldl -lm  >&5
-/tmp/conftest-LIgbod.o: In function `main':
+/tmp/conftest-v3FwhW.o: In function `main':
 /home/bohanw/583/hw2/slicm/conftest.c:186: undefined reference to `malloc_zone_statistics'
 clang: error: linker command failed with exit code 1 (use -v to see invocation)
 configure:11113: $? = 1
@@ -4650,7 +4650,7 @@ conftest.c:177:6: warning: declaration of built-in function 'sigsetjmp' requires
 char sigsetjmp ();
      ^
 1 warning generated.
-/tmp/conftest-QoaGLl.o: In function `main':
+/tmp/conftest-2C5a94.o: In function `main':
 /home/bohanw/583/hw2/slicm/conftest.c:188: undefined reference to `sigsetjmp'
 clang: error: linker command failed with exit code 1 (use -v to see invocation)
 configure:11125: $? = 1
@@ -5631,7 +5631,7 @@ CXXFLAGS='-g -O2'
 DATE='/bin/date'
 DEBUG_RUNTIME=''
 DEBUG_SYMBOLS=''
-DEFS='-DPACKAGE_NAME=\"\[slicm\]\" -DPACKAGE_TARNAME=\"--slicm--\" -DPACKAGE_VERSION=\"\[1.00\]\" -DPACKAGE_STRING=\"\[slicm\]\ \[1.00\]\" -DPACKAGE_BUGREPORT=\"bugs@yourdomain\" -DPACKAGE_URL=\"\" -DLLVM_ON_UNIX=1 -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DENABLE_THREADS=1 -DENABLE_PIC=1 -DENABLE_TIMESTAMPS=1 -DLLVM_NATIVE_ARCH=X86 -DLLVM_NATIVE_TARGET=LLVMInitializeX86Target -DLLVM_NATIVE_TARGETINFO=LLVMInitializeX86TargetInfo -DLLVM_NATIVE_TARGETMC=LLVMInitializeX86TargetMC -DLLVM_NATIVE_ASMPRINTER=LLVMInitializeX86AsmPrinter -DCLANG_RESOURCE_DIR=\"\" -DC_INCLUDE_DIRS=\"\" -DGCC_INSTALL_PREFIX=\"\" -DBUG_REPORT_URL=\"http://llvm.org/bugs/\" -DHAVE_DOT=1 -DLLVM_PATH_DOT=\"/usr/bin/dot\" -DHAVE_FDP=1 -DLLVM_PATH_FDP=\"/usr/bin/fdp\" -DHAVE_NEATO=1 -DLLVM_PATH_NEATO=\"/usr/bin/neato\" -DHAVE_TWOPI=1 -DLLVM_PATH_TWOPI=\"/usr/bin/twopi\" -DHAVE_CIRCO=1 -DLLVM_PATH_CIRCO=\"/usr/bin/circo\" -DHAVE_GV=1 -DLLVM_PATH_GV=\"/usr/bin/gv\" -DHAVE_DOTTY=1 -DLLVM_PATH_DOTTY=\"/usr/bin/dotty\" -DHOST_LINK_VERSION=\"2.26.1\" -DHAVE_LINK_R=1 -DHAVE_LINK_EXPORT_DYNAMIC=1 -DHAVE_DIRENT_H=1 -DHAVE_DLFCN_H=1 -DLTDL_SHLIB_EXT=\".so\" -DLTDL_SHLIBPATH_VAR=\"LD_LIBRARY_PATH\" -DLTDL_SYSSEARCHPATH=\"/lib:/usr/lib:/usr/lib/x86_64-linux-gnu/libfakeroot:/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu:/lib/i686-linux-gnu:/usr/lib/i686-linux-gnu:/usr/local/lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu/mesa-egl:/usr/lib/nvidia-340:/usr/lib32/nvidia-340:/lib32:/usr/lib32\" -DLTDL_OBJDIR=\".libs/\" -DHAVE_PRELOADED_SYMBOLS=1 -DHAVE_LIBDL=1 -DHAVE_DLERROR=1 -DHAVE_ARGZ_H=1 -DHAVE_ERROR_T=1 -DHAVE_ARGZ_APPEND=1 -DHAVE_ARGZ_CREATE_SEP=1 -DHAVE_ARGZ_INSERT=1 -DHAVE_ARGZ_NEXT=1 -DHAVE_ARGZ_STRINGIFY=1 -DHAVE_ASSERT_H=1 -DHAVE_CTYPE_H=1 -DHAVE_ERRNO_H=1 -DHAVE_MALLOC_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STDIO_H=1 -DHAVE_UNISTD_H=1 -DHAVE_STRING_H=1 -DHAVE_STRCHR=1 -DHAVE_STRRCHR=1 -DHAVE_MEMCPY=1 -DHAVE_MEMMOVE=1 -DHAVE_STRCMP=1 -DHAVE_CLOSEDIR=1 -DHAVE_OPENDIR=1 -DHAVE_READDIR=1 -DHAVE_LIBM=1 -DHAVE_DLOPEN=1 -DHAVE_MALLINFO=1 -DHAVE_LIBPTHREAD=1 -DHAVE_PTHREAD_MUTEX_LOCK=1 -DHAVE_PTHREAD_RWLOCK_INIT=1 -DHAVE_PTHREAD_GETSPECIFIC=1 -DUSE_UDIS86=0 -DUSE_OPROFILE=0 -DHAVE_DIRENT_H=1 -DHAVE_MMAP_ANONYMOUS=1 -DHAVE_SYS_WAIT_H=1 -DTIME_WITH_SYS_TIME=1 -DHAVE_DLFCN_H=1 -DHAVE_EXECINFO_H=1 -DHAVE_FCNTL_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_LIMITS_H=1 -DHAVE_LINK_H=1 -DHAVE_MALLOC_H=1 -DHAVE_SETJMP_H=1 -DHAVE_SIGNAL_H=1 -DHAVE_STDINT_H=1 -DHAVE_TERMIOS_H=1 -DHAVE_UNISTD_H=1 -DHAVE_UTIME_H=1 -DHAVE_SYS_MMAN_H=1 -DHAVE_SYS_PARAM_H=1 -DHAVE_SYS_RESOURCE_H=1 -DHAVE_SYS_TIME_H=1 -DHAVE_SYS_UIO_H=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_IOCTL_H=1 -DHAVE_FENV_H=1 -DHAVE_PTHREAD_H=1 -DHAVE_CRASHREPORTER_INFO=0 -DRETSIGTYPE=void -DHAVE_INT64_T=1 -DHAVE_UINT64_T=1 -DHAVE_BACKTRACE=1 -DHAVE_CEILF=1 -DHAVE_FLOORF=1 -DHAVE_ROUNDF=1 -DHAVE_RINTF=1 -DHAVE_NEARBYINTF=1 -DHAVE_GETCWD=1 -DHAVE_POWF=1 -DHAVE_FMODF=1 -DHAVE_STRTOF=1 -DHAVE_ROUND=1 -DHAVE_GETPAGESIZE=1 -DHAVE_GETRUSAGE=1 -DHAVE_GETRLIMIT=1 -DHAVE_SETRLIMIT=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_ISATTY=1 -DHAVE_MKDTEMP=1 -DHAVE_MKSTEMP=1 -DHAVE_MKTEMP=1 -DHAVE_POSIX_SPAWN=1 -DHAVE_REALPATH=1 -DHAVE_SBRK=1 -DHAVE_SETRLIMIT=1 -DHAVE_STRDUP=1 -DHAVE_STRERROR=1 -DHAVE_STRERROR_R=1 -DHAVE_SETENV=1 -DHAVE_STRTOLL=1 -DHAVE_STRTOQ=1 -DHAVE_SYSCONF=1 -DHAVE_SETJMP=1 -DHAVE_LONGJMP=1 -DHAVE_SIGLONGJMP=1 -DHAVE_WRITEV=1 -DHAVE_PRINTF_A=1 -DHAVE_RAND48=1 -DHAVE_DECL_STRERROR_S=0 -DHAVE_ISNAN_IN_MATH_H=1 -DHAVE_ISNAN_IN_CMATH=1 -DHAVE_STD_ISNAN_IN_CMATH=1 -DHAVE_ISINF_IN_MATH_H=1 -DHAVE_ISINF_IN_CMATH=1 -DHAVE_STD_ISINF_IN_CMATH=1 -DHAVE_STDLIB_H=1 -DHAVE_UNISTD_H=1 -DHAVE_SYS_PARAM_H=1 -DHAVE_GETPAGESIZE=1 -DHAVE_MMAP=1 -DHAVE_MMAP_FILE=/\*\*/ -DLLVM_HAS_ATOMICS=1 -DHAVE___DSO_HANDLE=1 -DLLVM_PREFIX=\"/usr/local\" -DLLVM_BINDIR=\"/usr/local/bin\" -DLLVM_LIBDIR=\"/usr/local/lib\" -DLLVM_DATADIR=\"/usr/local/share/llvm\" -DLLVM_DOCSDIR=\"/usr/local/share/doc/llvm\" -DLLVM_ETCDIR=\"/usr/local/etc/llvm\" -DLLVM_INCLUDEDIR=\"/usr/local/include\" -DLLVM_INFODIR=\"/usr/local/info\" -DLLVM_MANDIR=\"/usr/local/man\" -DLLVM_CONFIGTIME=\"Mon\ Oct\ \ 2\ 00:55:05\ EDT\ 2017\" -DLLVM_DEFAULT_TARGET_TRIPLE=\"x86_64-unknown-linux-gnu\"'
+DEFS='-DPACKAGE_NAME=\"\[slicm\]\" -DPACKAGE_TARNAME=\"--slicm--\" -DPACKAGE_VERSION=\"\[1.00\]\" -DPACKAGE_STRING=\"\[slicm\]\ \[1.00\]\" -DPACKAGE_BUGREPORT=\"bugs@yourdomain\" -DPACKAGE_URL=\"\" -DLLVM_ON_UNIX=1 -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DENABLE_THREADS=1 -DENABLE_PIC=1 -DENABLE_TIMESTAMPS=1 -DLLVM_NATIVE_ARCH=X86 -DLLVM_NATIVE_TARGET=LLVMInitializeX86Target -DLLVM_NATIVE_TARGETINFO=LLVMInitializeX86TargetInfo -DLLVM_NATIVE_TARGETMC=LLVMInitializeX86TargetMC -DLLVM_NATIVE_ASMPRINTER=LLVMInitializeX86AsmPrinter -DCLANG_RESOURCE_DIR=\"\" -DC_INCLUDE_DIRS=\"\" -DGCC_INSTALL_PREFIX=\"\" -DBUG_REPORT_URL=\"http://llvm.org/bugs/\" -DHAVE_DOT=1 -DLLVM_PATH_DOT=\"/usr/bin/dot\" -DHAVE_FDP=1 -DLLVM_PATH_FDP=\"/usr/bin/fdp\" -DHAVE_NEATO=1 -DLLVM_PATH_NEATO=\"/usr/bin/neato\" -DHAVE_TWOPI=1 -DLLVM_PATH_TWOPI=\"/usr/bin/twopi\" -DHAVE_CIRCO=1 -DLLVM_PATH_CIRCO=\"/usr/bin/circo\" -DHAVE_GV=1 -DLLVM_PATH_GV=\"/usr/bin/gv\" -DHAVE_DOTTY=1 -DLLVM_PATH_DOTTY=\"/usr/bin/dotty\" -DHOST_LINK_VERSION=\"2.26.1\" -DHAVE_LINK_R=1 -DHAVE_LINK_EXPORT_DYNAMIC=1 -DHAVE_DIRENT_H=1 -DHAVE_DLFCN_H=1 -DLTDL_SHLIB_EXT=\".so\" -DLTDL_SHLIBPATH_VAR=\"LD_LIBRARY_PATH\" -DLTDL_SYSSEARCHPATH=\"/lib:/usr/lib:/usr/lib/x86_64-linux-gnu/libfakeroot:/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu:/lib/i686-linux-gnu:/usr/lib/i686-linux-gnu:/usr/local/lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu/mesa-egl:/usr/lib/nvidia-340:/usr/lib32/nvidia-340:/lib32:/usr/lib32\" -DLTDL_OBJDIR=\".libs/\" -DHAVE_PRELOADED_SYMBOLS=1 -DHAVE_LIBDL=1 -DHAVE_DLERROR=1 -DHAVE_ARGZ_H=1 -DHAVE_ERROR_T=1 -DHAVE_ARGZ_APPEND=1 -DHAVE_ARGZ_CREATE_SEP=1 -DHAVE_ARGZ_INSERT=1 -DHAVE_ARGZ_NEXT=1 -DHAVE_ARGZ_STRINGIFY=1 -DHAVE_ASSERT_H=1 -DHAVE_CTYPE_H=1 -DHAVE_ERRNO_H=1 -DHAVE_MALLOC_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STDIO_H=1 -DHAVE_UNISTD_H=1 -DHAVE_STRING_H=1 -DHAVE_STRCHR=1 -DHAVE_STRRCHR=1 -DHAVE_MEMCPY=1 -DHAVE_MEMMOVE=1 -DHAVE_STRCMP=1 -DHAVE_CLOSEDIR=1 -DHAVE_OPENDIR=1 -DHAVE_READDIR=1 -DHAVE_LIBM=1 -DHAVE_DLOPEN=1 -DHAVE_MALLINFO=1 -DHAVE_LIBPTHREAD=1 -DHAVE_PTHREAD_MUTEX_LOCK=1 -DHAVE_PTHREAD_RWLOCK_INIT=1 -DHAVE_PTHREAD_GETSPECIFIC=1 -DUSE_UDIS86=0 -DUSE_OPROFILE=0 -DHAVE_DIRENT_H=1 -DHAVE_MMAP_ANONYMOUS=1 -DHAVE_SYS_WAIT_H=1 -DTIME_WITH_SYS_TIME=1 -DHAVE_DLFCN_H=1 -DHAVE_EXECINFO_H=1 -DHAVE_FCNTL_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_LIMITS_H=1 -DHAVE_LINK_H=1 -DHAVE_MALLOC_H=1 -DHAVE_SETJMP_H=1 -DHAVE_SIGNAL_H=1 -DHAVE_STDINT_H=1 -DHAVE_TERMIOS_H=1 -DHAVE_UNISTD_H=1 -DHAVE_UTIME_H=1 -DHAVE_SYS_MMAN_H=1 -DHAVE_SYS_PARAM_H=1 -DHAVE_SYS_RESOURCE_H=1 -DHAVE_SYS_TIME_H=1 -DHAVE_SYS_UIO_H=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_IOCTL_H=1 -DHAVE_FENV_H=1 -DHAVE_PTHREAD_H=1 -DHAVE_CRASHREPORTER_INFO=0 -DRETSIGTYPE=void -DHAVE_INT64_T=1 -DHAVE_UINT64_T=1 -DHAVE_BACKTRACE=1 -DHAVE_CEILF=1 -DHAVE_FLOORF=1 -DHAVE_ROUNDF=1 -DHAVE_RINTF=1 -DHAVE_NEARBYINTF=1 -DHAVE_GETCWD=1 -DHAVE_POWF=1 -DHAVE_FMODF=1 -DHAVE_STRTOF=1 -DHAVE_ROUND=1 -DHAVE_GETPAGESIZE=1 -DHAVE_GETRUSAGE=1 -DHAVE_GETRLIMIT=1 -DHAVE_SETRLIMIT=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_ISATTY=1 -DHAVE_MKDTEMP=1 -DHAVE_MKSTEMP=1 -DHAVE_MKTEMP=1 -DHAVE_POSIX_SPAWN=1 -DHAVE_REALPATH=1 -DHAVE_SBRK=1 -DHAVE_SETRLIMIT=1 -DHAVE_STRDUP=1 -DHAVE_STRERROR=1 -DHAVE_STRERROR_R=1 -DHAVE_SETENV=1 -DHAVE_STRTOLL=1 -DHAVE_STRTOQ=1 -DHAVE_SYSCONF=1 -DHAVE_SETJMP=1 -DHAVE_LONGJMP=1 -DHAVE_SIGLONGJMP=1 -DHAVE_WRITEV=1 -DHAVE_PRINTF_A=1 -DHAVE_RAND48=1 -DHAVE_DECL_STRERROR_S=0 -DHAVE_ISNAN_IN_MATH_H=1 -DHAVE_ISNAN_IN_CMATH=1 -DHAVE_STD_ISNAN_IN_CMATH=1 -DHAVE_ISINF_IN_MATH_H=1 -DHAVE_ISINF_IN_CMATH=1 -DHAVE_STD_ISINF_IN_CMATH=1 -DHAVE_STDLIB_H=1 -DHAVE_UNISTD_H=1 -DHAVE_SYS_PARAM_H=1 -DHAVE_GETPAGESIZE=1 -DHAVE_MMAP=1 -DHAVE_MMAP_FILE=/\*\*/ -DLLVM_HAS_ATOMICS=1 -DHAVE___DSO_HANDLE=1 -DLLVM_PREFIX=\"/usr/local\" -DLLVM_BINDIR=\"/usr/local/bin\" -DLLVM_LIBDIR=\"/usr/local/lib\" -DLLVM_DATADIR=\"/usr/local/share/llvm\" -DLLVM_DOCSDIR=\"/usr/local/share/doc/llvm\" -DLLVM_ETCDIR=\"/usr/local/etc/llvm\" -DLLVM_INCLUDEDIR=\"/usr/local/include\" -DLLVM_INFODIR=\"/usr/local/info\" -DLLVM_MANDIR=\"/usr/local/man\" -DLLVM_CONFIGTIME=\"Fri\ Oct\ \ 6\ 16:24:06\ EDT\ 2017\" -DLLVM_DEFAULT_TARGET_TRIPLE=\"x86_64-unknown-linux-gnu\"'
 DISABLE_ASSERTIONS=''
 DOT='/usr/bin/dot'
 DOTTY='/usr/bin/dotty'
@@ -5685,7 +5685,7 @@ LIBOBJS=''
 LIBS='-lpthread -ldl -lm '
 LINKALL='-Wl,--whole-archive'
 LLVM_BINDIR='/usr/local/bin'
-LLVM_CONFIGTIME='Mon Oct  2 00:55:05 EDT 2017'
+LLVM_CONFIGTIME='Fri Oct  6 16:24:06 EDT 2017'
 LLVM_CROSS_COMPILING='0'
 LLVM_DATADIR='/usr/local/share/llvm'
 LLVM_DOCSDIR='/usr/local/share/doc/llvm'
@@ -5699,7 +5699,7 @@ LLVM_INCLUDEDIR='/usr/local/include'
 LLVM_INFODIR='/usr/local/info'
 LLVM_LIBDIR='/usr/local/lib'
 LLVM_MANDIR='/usr/local/man'
-LLVM_OBJ='/opt/llvm'
+LLVM_OBJ='/opt/llvm-debug'
 LLVM_ON_UNIX='1'
 LLVM_ON_WIN32='0'
 LLVM_PREFIX='/usr/local'
@@ -5979,7 +5979,7 @@ target_vendor='unknown'
 #define LLVM_INCLUDEDIR "/usr/local/include"
 #define LLVM_INFODIR "/usr/local/info"
 #define LLVM_MANDIR "/usr/local/man"
-#define LLVM_CONFIGTIME "Mon Oct  2 00:55:05 EDT 2017"
+#define LLVM_CONFIGTIME "Fri Oct  6 16:24:06 EDT 2017"
 #define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-unknown-linux-gnu"
 
 configure: exit 0
