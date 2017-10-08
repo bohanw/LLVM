@@ -258,7 +258,7 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   CurAST = new AliasSetTracker(*AA);
   LLP = &getAnalysis<LAMPLoadProfile>();
-
+  dep_count_map= LLP->DepToTimesMap; 
 
 
 
@@ -308,6 +308,8 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
       MayThrow |= I->mayThrow();
     }
   }
+
+
   // We want to visit all of the instructions in this loop... that are not parts
   // of our subloops (they have already had their invariants hoisted out of
   // their loop, into this loop, so there is no need to process the BODIES of
@@ -323,6 +325,23 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   if (Preheader)
     HoistRegion(DT->getNode(L->getHeader()));
 
+  //***************************************************************************
+
+  for(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin();it!=loadToDependentInstMap.end();++it){
+    Instruction *I = it->first;
+    std::vector<Instruction*>  vec = it->second;
+    errs() << "Instruction containing load " << I << "\n";
+    errs() << "vec size " << vec.size() << "\n";
+    for(std::vector<Instruction*>::iterator i = vec.begin();i!=vec.end();i++){
+      errs() << "inst " << &i << "\n";
+    }
+  }
+
+  errs() << "depToLoadMap size " << depToLoadMap.size() <<"\n";
+  for(std::map<Instruction*, Instruction*>::iterator it = depToLoadMap.begin(); it!= depToLoadMap.end(); ++it){
+    errs() << "consumer inst " << it->first << "load inst " << it->second << "\n";
+  }
+  //***************************************************************************
   // Now that all loop invariants have been removed from the loop, promote any
   // memory references to scalars that we can.
   if (!DisablePromotion && Preheader && L->hasDedicatedExits()) {
@@ -338,6 +357,10 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   // Clear out loops state information for the next iteration
   CurLoop = 0;
   Preheader = 0;
+
+  depToLoadMap.clear();
+  loadToDependentInstMap.clear();
+
 
   // If this loop is nested inside of another one, save the alias information
   // for when we process the outer loop.
@@ -426,26 +449,93 @@ void SLICM::HoistRegion(DomTreeNode *N) {
         continue;
       }
 
+      /*
       bool elig_ld =  isEligibleLoad(I);
       //TODO: push eligible load to eligible load vector,
       //Map to flag instruction?
       if(elig_ld){
-
+        eligibleLoads.push_back(&I);
 
       }
+      */
       // Try hoisting the instruction out to the preheader.  We can only do this
       // if all of the operands of the instruction are loop invariant and if it
       // is safe to hoist the instruction.
       //
       int hoistValue = canSinkOrHoistInst(I);
+      //errs() << "hoistValue  =  " << hoistValue << "\n\n";
       if (CurLoop->hasLoopInvariantOperands(&I)  &&
           isSafeToExecuteUnconditionally(I)){
 
+        //If not 
         if(hoistValue != 0) {
-          if(hoistValue == 1) hoist(I);
-          if(hoistValue == 2){
-            //speculative hoisting
+          //The eligible instruction may or may not dependent on speculative load
+          if(hoistValue == 1) {
+            errs() << "eligible non-load instruction to be hoisted" << "\n";
+            hoist(I);
+
+            //Check if this instruction is load or not
+
+            //If exists in the depToLoadmap then depending on some spec load,
+            //If not, not need to traverse the use_list, find all users which may become invariant after
+            //speculative load hoisting.
+            //if(depToLoadmap.count(I) != 0){
+
+            for(unsigned i = 0; i != I.getNumOperands();++i){
+              Value *V = I.getOperand(i);
+              Instruction * temp = dyn_cast<Instruction>(V);
+
+              for(Value::use_iterator U = temp->use_begin();U != temp->use_end();++U){
+                Instruction *user = dyn_cast<Instruction>(*U);
+                if(CurLoop->hasLoopInvariantOperands(user) && (depToLoadMap.find(&I) != depToLoadMap.end())){
+                  //current user of Inst I is invariant after hoist
+
+                  Instruction *depLd = depToLoadMap[&I];
+                  depToLoadMap[user] = depLd;
+
+                  errs() << "Instruction name " << user << "\n";
+                  loadToDependentInstMap[depLd].push_back(user);
+                }
+              }
+            }  
+
           }
+          
+          if(hoistValue == 2){
+
+            //speculative hoisting for load
+            createRedoBB(I);
+            errs() << "Hoist eligible load" << "\n";
+            hoist(I); 
+
+            if(loadToDependentInstMap.count(&I) == 0){
+              errs() << "first encounter of eligible load" << I <<  "\n";
+
+              loadToDependentInstMap[&I] = std::vector<Instruction*>();
+            }
+
+            //Traversing use_list of the currect instruction
+            else {
+              for(unsigned i = 0;i != I.getNumOperands();++i){
+                Value *V = I.getOperand(i);
+                Instruction *temp = dyn_cast<Instruction>(V);
+              
+              for(Value::use_iterator U = temp->use_begin();U != temp->use_end();++U){
+                Instruction *user = dyn_cast<Instruction>(*U);
+                //TODO: Create the depToMap 
+                if(depToLoadMap.count(user) == 0){
+                  depToLoadMap[user] = &I;
+
+                }
+
+                //push instructions dependent on load for constructing RedoBB
+                loadToDependentInstMap[&I].push_back(user);
+
+              }
+            }
+            }
+
+          } 
         }
       }
         
@@ -456,6 +546,18 @@ void SLICM::HoistRegion(DomTreeNode *N) {
     HoistRegion(Children[i]);
 }
 
+//TODO: Return the Instruction (load) that given I will become invariant after hoisting
+/*
+Instruction* SLICM::findDependentLoad(Instruction &I){
+  for(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin(); it!= loadToDependentInstMap.end();++it){
+    std::vector<Instruction*> vec = it->second;
+
+    for(std::vector<Instruction*>::iterator inst = vec.begin(); inst!= vec.end();++inst){
+
+    }
+  }
+}
+*/
 /// canSinkOrHoistInst - Return true if the hoister and sinker can handle this
 /// instruction.
 ///
@@ -471,7 +573,7 @@ int SLICM::canSinkOrHoistInst(Instruction &I) {
     // Loads from constant memory are always safe to move, even if they end up
     // in the same alias set as something that ends up being modified.
     if (AA->pointsToConstantMemory(LI->getOperand(0))){
-      hoistValue = 1
+      hoistValue = 1;
       return hoistValue;
     }
     if (LI->getMetadata("invariant.load")){
@@ -482,14 +584,24 @@ int SLICM::canSinkOrHoistInst(Instruction &I) {
     // Don't hoist loads which have may-aliased stores in loop.
     //TODO: MODIFY to allow speculative hoist load, hoistValue = 2;
     
+    /*
     uint64_t Size = 0;
     if (LI->getType()->isSized())
       Size = AA->getTypeStoreSize(LI->getType());{
       hoistValue = 0;//for standard LICM
     //return !pointerInvalidatedByLoop(LI->getOperand(0), Size,
       //                               LI->getMetadata(LLVMContext::MD_tbaa));
+      //return hoistValue;
+
+    }
+    */
+    if(isEligibleLoad(I)){
+      hoistValue = 2;
       return hoistValue;
     }
+
+    return 0;
+
   } else if (CallInst *CI = dyn_cast<CallInst>(&I)) {
     // Don't sink or hoist dbg info; it's legal, but not useful.
     if (isa<DbgInfoIntrinsic>(I)){
@@ -536,9 +648,11 @@ int SLICM::canSinkOrHoistInst(Instruction &I) {
       hoistValue = 0;
       return hoistValue;
   }
+
   if(isSafeToExecuteUnconditionally(I)) 
        hoistValue = 1;
   else hoistValue = 0;
+
   return hoistValue;
 }
 
@@ -692,7 +806,8 @@ void SLICM::sink(Instruction &I) {
 void SLICM::hoist(Instruction &I) {
   DEBUG(dbgs() << "SLICM hoisting to " << Preheader->getName() << ": "
         << I << "\n");
-
+ errs() << "SLICM hoisting to " << Preheader->getName() << ": "
+        << I << "\n";
   // Move the new node to the Preheader, before its terminator.
   I.moveBefore(Preheader->getTerminator());
 

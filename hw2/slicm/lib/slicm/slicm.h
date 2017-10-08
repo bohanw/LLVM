@@ -132,13 +132,29 @@ namespace {
                              // instructions with side effects.
     DenseMap<Loop*, AliasSetTracker*> LoopToAliasSetMap;
 
-    std::map<std::pair<Instruction*, Instruction*>*, unsigned int> dep_count_map = LLP->DepToTimesMap; 
+    
+
   
   //flag of whether to redo the block, must accompany the ld instruction
   //Key: eligible loads -> Value bool value
     //std::map<Instruction*, Instruction*> ld_flag_map;
-    std::vector<Instruction*> eligibleLoads;
+
+    //***********NEW DATA structure for SLICM************
+    //**************************************************
+
+    // From LAMP profiler
+    
+    std::map<std::pair<Instruction*, Instruction*>*, unsigned int> dep_count_map ;
     LAMPLoadProfile *LLP;
+    
+
+    std::vector<Instruction*> eligibleLoads;
+    std::map<Instruction*, std::vector<Instruction*> > loadToDependentInstMap;
+    std::map<Instruction*, Instruction*> depToLoadMap;
+    //**************************************************
+
+
+
     /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
     void cloneBasicBlockAnalysis(BasicBlock *From, BasicBlock *To, Loop *L);
 
@@ -201,7 +217,7 @@ namespace {
       return CurAST->getAliasSetForPointer(V, Size, TBAAInfo).isMod();
     }
 
-    bool canSinkOrHoistInst(Instruction &I);
+    int canSinkOrHoistInst(Instruction &I);
     bool isNotUsedInLoop(Instruction &I);
 
     void PromoteAliasSet(AliasSet &AS,
@@ -209,5 +225,6 @@ namespace {
                          SmallVectorImpl<Instruction*> &InsertPts);
 
     bool isEligibleLoad(Instruction &I);
+    //Instruction* SLICM::findDependentLoad(Instruction &I);
   };
 }
