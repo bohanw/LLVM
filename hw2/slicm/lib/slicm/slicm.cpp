@@ -535,7 +535,8 @@ void SLICM::HoistRegion(DomTreeNode *N) {
 void SLICM::insertDummyforSplit(Instruction &I) {
   //Create Dummy at the 
   BasicBlock* bb = I.getParent();
-  //Instruction* dummy = new Instruction();
+  //TODO: Use of BinaryOperator::create ?? 
+  Instruction* dummy = BinaryOperator::Create(Add, 0,0 )
   //bb->getInstList().insert(&I, dummy);
 
 }
