@@ -330,10 +330,14 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   for(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin();it!=loadToDependentInstMap.end();++it){
     Instruction *I = it->first;
     std::vector<Instruction*>  vec = it->second;
-    errs() << "Instruction containing load " << I << "\n";
+    errs() << "*********************************************\n";
+    errs() << "Instruction containing load " << *I << "\n";
     errs() << "vec size " << vec.size() << "\n";
+    errs() << "*********************************************\n";
+   
     for(std::vector<Instruction*>::iterator i = vec.begin();i!=vec.end();i++){
-      errs() << "inst " << &i << "\n";
+      
+      errs() << "inst " << **i << "\n";
     }
   }
 
@@ -449,94 +453,73 @@ void SLICM::HoistRegion(DomTreeNode *N) {
         continue;
       }
 
-      /*
-      bool elig_ld =  isEligibleLoad(I);
-      //TODO: push eligible load to eligible load vector,
-      //Map to flag instruction?
-      if(elig_ld){
-        eligibleLoads.push_back(&I);
-
-      }
-      */
       // Try hoisting the instruction out to the preheader.  We can only do this
       // if all of the operands of the instruction are loop invariant and if it
       // is safe to hoist the instruction.
       //
       int hoistValue = canSinkOrHoistInst(I);
       //errs() << "hoistValue  =  " << hoistValue << "\n\n";
-      if (CurLoop->hasLoopInvariantOperands(&I)  &&
+      if (CurLoop->hasLoopInvariantOperands(&I)  && hoistValue != 0 &&
           isSafeToExecuteUnconditionally(I)){
 
-        //If not 
-        if(hoistValue != 0) {
           //The eligible instruction may or may not dependent on speculative load
           if(hoistValue == 1) {
             errs() << "eligible non-load instruction to be hoisted" << "\n";
             hoist(I);
+            //Iterate through use_list of the I 
 
-            //Check if this instruction is load or not
-
-            //If exists in the depToLoadmap then depending on some spec load,
-            //If not, not need to traverse the use_list, find all users which may become invariant after
-            //speculative load hoisting.
-            //if(depToLoadmap.count(I) != 0){
-
-            for(unsigned i = 0; i != I.getNumOperands();++i){
-              Value *V = I.getOperand(i);
-              Instruction * temp = dyn_cast<Instruction>(V);
-
-              for(Value::use_iterator U = temp->use_begin();U != temp->use_end();++U){
-                Instruction *user = dyn_cast<Instruction>(*U);
-                if(CurLoop->hasLoopInvariantOperands(user) && (depToLoadMap.find(&I) != depToLoadMap.end())){
+            for(Value::use_iterator U = I.use_begin();U != I.use_end();++U){
+              Instruction *user = dyn_cast<Instruction>(*U);
+              errs() << "#####user is invariant "  << CurLoop->hasLoopInvariantOperands(user) << "\n";
+              errs() << "#####is user safe to exec " << isSafeToExecuteUnconditionally(*user)  << "\n";
+              errs() << "#####this is not load inst " << !isa<LoadInst>(user) << "\n";
+               if(CurLoop->hasLoopInvariantOperands(user) &&  //user of I is now invariant
+                   isSafeToExecuteUnconditionally(*user) &&  // instruction writes to User will guarantee to exec
+                   !isa<LoadInst>(user)) // not a load instruction
+                   {
                   //current user of Inst I is invariant after hoist
 
+                  errs() << "****** add instruction " << *user << " to loadToDependentInstMap *****" << "\n";
                   Instruction *depLd = depToLoadMap[&I];
                   depToLoadMap[user] = depLd;
-
-                  errs() << "Instruction name " << user << "\n";
                   loadToDependentInstMap[depLd].push_back(user);
                 }
               }
-            }  
+              
 
           }
           
-          if(hoistValue == 2){
-
-            //speculative hoisting for load
-            createRedoBB(I);
+          //speculative hoisting for load
+          if(hoistValue == 2){            
+            insertDummyforSplit(I);
             errs() << "Hoist eligible load" << "\n";
             hoist(I); 
-
+            /*
             if(loadToDependentInstMap.count(&I) == 0){
               errs() << "first encounter of eligible load" << I <<  "\n";
-
               loadToDependentInstMap[&I] = std::vector<Instruction*>();
             }
-
+            */
             //Traversing use_list of the currect instruction
-            else {
-              for(unsigned i = 0;i != I.getNumOperands();++i){
-                Value *V = I.getOperand(i);
-                Instruction *temp = dyn_cast<Instruction>(V);
-              
-              for(Value::use_iterator U = temp->use_begin();U != temp->use_end();++U){
+              for(Value::use_iterator U = I.use_begin();U != I.use_end();++U){
                 Instruction *user = dyn_cast<Instruction>(*U);
-                //TODO: Create the depToMap 
-                if(depToLoadMap.count(user) == 0){
-                  depToLoadMap[user] = &I;
+                if(CurLoop->hasLoopInvariantOperands(user) &&  //user of I is now invariant
+                   isSafeToExecuteUnconditionally(*user) &&  // instruction writes to User will guarantee to exec
+                   !isa<LoadInst>(user))// not a load instruction
+                  {                
 
+                  errs() << "****** add instruction " << *user << " to loadToDependentInstMap *****" << "\n";
+                  if(depToLoadMap.count(user) == 0){
+                    depToLoadMap[user] = &I;
+                  }
+                  //push instructions dependent on load for constructing RedoBB
+                  loadToDependentInstMap[&I].push_back(user);
                 }
-
-                //push instructions dependent on load for constructing RedoBB
-                loadToDependentInstMap[&I].push_back(user);
-
-              }
-            }
-            }
+              } 
+            
 
           } 
-        }
+        
       }
         
     }
@@ -546,6 +529,16 @@ void SLICM::HoistRegion(DomTreeNode *N) {
     HoistRegion(Children[i]);
 }
 
+
+// Create dummy instruction as placeholder to split BB
+// 
+void SLICM::insertDummyforSplit(Instruction &I) {
+  //Create Dummy at the 
+  BasicBlock* bb = I.getParent();
+  //Instruction* dummy = new Instruction();
+  //bb->getInstList().insert(&I, dummy);
+
+}
 //TODO: Return the Instruction (load) that given I will become invariant after hoisting
 /*
 Instruction* SLICM::findDependentLoad(Instruction &I){

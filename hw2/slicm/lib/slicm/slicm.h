@@ -225,6 +225,7 @@ namespace {
                          SmallVectorImpl<Instruction*> &InsertPts);
 
     bool isEligibleLoad(Instruction &I);
+    void insertDummyforSplit(Instruction &I);
     //Instruction* SLICM::findDependentLoad(Instruction &I);
   };
 }
