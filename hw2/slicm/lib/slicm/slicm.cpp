@@ -260,8 +260,6 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   LLP = &getAnalysis<LAMPLoadProfile>();
   dep_count_map= LLP->DepToTimesMap; 
 
-
-
   // Collect Alias info from subloops.
   for (Loop::iterator LoopItr = L->begin(), LoopItrE = L->end();
        LoopItr != LoopItrE; ++LoopItr) {
@@ -327,6 +325,7 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   //***************************************************************************
 
+  
   for(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin();it!=loadToDependentInstMap.end();++it){
     Instruction *I = it->first;
     std::vector<Instruction*>  vec = it->second;
@@ -346,6 +345,13 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     errs() << "consumer inst " << it->first << "load inst " << it->second << "\n";
   }
   //***************************************************************************
+
+
+  //TODO: Remove dummy
+  // Traversing the redo bb based on the mapping and splitblock
+
+  removeDummyInst();
+
   // Now that all loop invariants have been removed from the loop, promote any
   // memory references to scalars that we can.
   if (!DisablePromotion && Preheader && L->hasDedicatedExits()) {
@@ -520,7 +526,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
 
             //Allocate new branch instruction 
             AllocaInst *flag = new AllocaInst(llvm::Type::getInt1Ty(I.getParent()->getContext()), "flag", I.getParent()->getTerminator());
-            
+
 
           } 
         
@@ -545,6 +551,7 @@ void SLICM::insertDummyforSplit(Instruction &I) {
   llvm::Constant *i32_val2 = llvm::ConstantInt::get(i32_type,0,true);
   Instruction* dummy = llvm::BinaryOperator::Create(Instruction::Add, i32_val1 , i32_val2, "dummy", &I );
 
+  ldToDummyMap[&I] = dummy;
   //**********************Test***********************************
   for(BasicBlock::iterator ii = bb->begin(); ii!= bb->end();++ii) {
     errs() << "Instruction in this BB is " << *ii <<  "\n";
@@ -554,6 +561,17 @@ void SLICM::insertDummyforSplit(Instruction &I) {
   }
   //bb->getInstList().insert(&I, dummy);
 
+}
+
+
+void SLICM::removeDummyInst() {
+  Loop* L = CurLoop;
+  //CurLoop = L;
+  for(Loop::block_iterator BB = L->block_begin(); BB != L->block_end(); ++BB){
+    for(BasicBlock::iterator I =(*BB)->begin(); I != (*BB)->end(); ++I){
+      
+    }
+  }  
 }
 //TODO: Return the Instruction (load) that given I will become invariant after hoisting
 /*

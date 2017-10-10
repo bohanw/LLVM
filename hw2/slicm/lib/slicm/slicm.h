@@ -151,6 +151,7 @@ namespace {
     std::vector<Instruction*> eligibleLoads;
     std::map<Instruction*, std::vector<Instruction*> > loadToDependentInstMap;
     std::map<Instruction*, Instruction*> depToLoadMap;
+    std::map<Instruction*, Instruction*> ldToDummyMap;
     //**************************************************
 
 
@@ -226,6 +227,8 @@ namespace {
 
     bool isEligibleLoad(Instruction &I);
     void insertDummyforSplit(Instruction &I);
-    //Instruction* SLICM::findDependentLoad(Instruction &I);
+    //Instruction* SLICM::findDependentLoad(Istruction &I);
+
+    void removeDummyInst();
   };
 }
