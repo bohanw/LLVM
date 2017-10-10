@@ -506,7 +506,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
                 if(CurLoop->hasLoopInvariantOperands(user) &&  //user of I is now invariant
                    isSafeToExecuteUnconditionally(*user) &&  // instruction writes to User will guarantee to exec
                    !isa<LoadInst>(user))// not a load instruction
-                  {                
+                {                
 
                   errs() << "****** add instruction " << *user << " to loadToDependentInstMap *****" << "\n";
                   if(depToLoadMap.count(user) == 0){
@@ -516,6 +516,10 @@ void SLICM::HoistRegion(DomTreeNode *N) {
                   loadToDependentInstMap[&I].push_back(user);
                 }
               } 
+            
+
+            //Allocate new branch instruction 
+            AllocaInst *flag = new AllocaInst(llvm::Type::getInt1Ty(I.getParent()->getContext()), "flag", I.getParent()->getTerminator());
             
 
           } 
@@ -533,10 +537,21 @@ void SLICM::HoistRegion(DomTreeNode *N) {
 // Create dummy instruction as placeholder to split BB
 // 
 void SLICM::insertDummyforSplit(Instruction &I) {
-  //Create Dummy at the 
+  //Create Dummy in front of I (speculative load to be hoisted)
   BasicBlock* bb = I.getParent();
-  //TODO: Use of BinaryOperator::create ?? 
-  Instruction* dummy = BinaryOperator::Create(Add, 0,0 )
+  // Use of BinaryOperator::create dummy inst "add 0 0 0"
+  llvm::Type *i32_type = llvm::IntegerType::getInt32Ty(bb->getContext());
+  llvm::Constant *i32_val1 = llvm::ConstantInt::get(i32_type, 0, true);
+  llvm::Constant *i32_val2 = llvm::ConstantInt::get(i32_type,0,true);
+  Instruction* dummy = llvm::BinaryOperator::Create(Instruction::Add, i32_val1 , i32_val2, "dummy", &I );
+
+  //**********************Test***********************************
+  for(BasicBlock::iterator ii = bb->begin(); ii!= bb->end();++ii) {
+    errs() << "Instruction in this BB is " << *ii <<  "\n";
+    if(ii->isIdenticalTo(dummy)){
+      errs() << "current inst is dummy" << "\n";
+    }
+  }
   //bb->getInstList().insert(&I, dummy);
 
 }
