@@ -70,17 +70,17 @@
 #include "llvm/Analysis/ProfileInfo.h"
 
 using namespace llvm;
-/*
+
 STATISTIC(NumSunk      , "Number of instructions sunk out of loop");
 STATISTIC(NumHoisted   , "Number of instructions hoisted out of loop");
 STATISTIC(NumMovedLoads, "Number of load insts hoisted or sunk");
 STATISTIC(NumMovedCalls, "Number of call insts hoisted or sunk");
 STATISTIC(NumPromoted  , "Number of memory locations promoted to registers");
-*/
-//static cl::opt<bool>
-//DisablePromotion("disable-slicm-promotion", cl::Hidden,
- //                cl::desc("Disable memory promotion in SLICM pass"));
-/*
+
+static cl::opt<bool>
+DisablePromotion("disable-slicm-promotion", cl::Hidden,
+                 cl::desc("Disable memory promotion in SLICM pass"));
+
 namespace {
   struct SLICM : public LoopPass {
     static char ID; // Pass identification, replacement for typeid
@@ -131,6 +131,25 @@ namespace {
                              // may throw, thus preventing code motion of
                              // instructions with side effects.
     DenseMap<Loop*, AliasSetTracker*> LoopToAliasSetMap;
+
+
+        //***********NEW DATA structure for SLICM************
+
+    // From LAMP profiler
+    
+    std::map<std::pair<Instruction*, Instruction*>*, unsigned int> dep_count_map ;
+    LAMPLoadProfile *LLP;
+    
+
+    std::vector<Instruction*> eligibleLoads;
+    std::map<Instruction*, std::vector<Instruction*> > loadToDependentInstMap;
+    std::map<Instruction*, Instruction*> depToLoadMap;
+    std::map<Instruction*, Instruction*> ldToDummyMap;
+    std::map<Instruction*, Instruction*> dummyToLdMap;
+
+    std::vector<Instruction*> dummyList;
+    std::map<Instruction*, Instruction*> ldToFlagMap;
+    //**************************************************
 
     /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
     void cloneBasicBlockAnalysis(BasicBlock *From, BasicBlock *To, Loop *L);
@@ -194,15 +213,22 @@ namespace {
       return CurAST->getAliasSetForPointer(V, Size, TBAAInfo).isMod();
     }
 
-    bool canSinkOrHoistInst(Instruction &I);
+    int canSinkOrHoistInst(Instruction &I);
     bool isNotUsedInLoop(Instruction &I);
 
     void PromoteAliasSet(AliasSet &AS,
                          SmallVectorImpl<BasicBlock*> &ExitBlocks,
                          SmallVectorImpl<Instruction*> &InsertPts);
+
+    bool isEligibleLoad(Instruction &I);
+    void insertDummyforSplit(Instruction &I);
+    //Instruction* SLICM::findDependentLoad(Istruction &I);
+
+    //void removeDummyInst();
+    void createRedoBB(Instruction &I);
   };
 }
-*/
+
 char SLICM::ID = 0;
 /*
 // 583 - commented out INITIALIZE_ macros & createSLICMPass
@@ -229,7 +255,7 @@ bool SLICM::isEligibleLoad(Instruction &I) {
         Instruction *User = dyn_cast<Instruction>(*UI);
         if(CurLoop->contains(User)){
           if(isa<StoreInst>(User)){
-            errs()<< "Dependent instruction " << *User << "\n";
+            errs()<< "Dependent instruction " << *User << " of Instruction " << I << "\n";
             return false;
           }
         }
@@ -323,9 +349,9 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   if (Preheader)
     HoistRegion(DT->getNode(L->getHeader()));
 
+  
   //***************************************************************************
 
-  
   for(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin();it!=loadToDependentInstMap.end();++it){
     Instruction *I = it->first;
     std::vector<Instruction*>  vec = it->second;
@@ -344,14 +370,14 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   for(std::map<Instruction*, Instruction*>::iterator it = depToLoadMap.begin(); it!= depToLoadMap.end(); ++it){
     errs() << "consumer inst " << it->first << "load inst " << it->second << "\n";
   }
+
+
   //***************************************************************************
 
-
-  //TODO: Remove dummy
-  // Traversing the redo bb based on the mapping and splitblock
-
-  removeDummyInst();
-
+  for(std::map<Instruction*,Instruction*>::iterator it = ldToDummyMap.begin();it!=ldToDummyMap.end();++it){
+    Instruction *I = it->first;
+    createRedoBB(*I);
+  }
   // Now that all loop invariants have been removed from the loop, promote any
   // memory references to scalars that we can.
   if (!DisablePromotion && Preheader && L->hasDedicatedExits()) {
@@ -370,7 +396,10 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   depToLoadMap.clear();
   loadToDependentInstMap.clear();
-
+  ldToDummyMap.clear();
+  ldToFlagMap.clear();
+  dummyToLdMap.clear();
+ 
 
   // If this loop is nested inside of another one, save the alias information
   // for when we process the outer loop.
@@ -463,22 +492,24 @@ void SLICM::HoistRegion(DomTreeNode *N) {
       // if all of the operands of the instruction are loop invariant and if it
       // is safe to hoist the instruction.
       //
+      errs() << "check the hoist status of instruction " << I << "\n ";
       int hoistValue = canSinkOrHoistInst(I);
-      //errs() << "hoistValue  =  " << hoistValue << "\n\n";
-      if (CurLoop->hasLoopInvariantOperands(&I)  && hoistValue != 0 &&
-          isSafeToExecuteUnconditionally(I)){
+      errs() << "hoistValue  =  " << hoistValue << "\n\n";
+      if (CurLoop->hasLoopInvariantOperands(&I)  
+          && hoistValue != 0 
+          && isSafeToExecuteUnconditionally(I)){
 
           //The eligible instruction may or may not dependent on speculative load
           if(hoistValue == 1) {
-            errs() << "eligible non-load instruction to be hoisted" << "\n";
+            errs() << "eligible non-load instruction " << I << "  to be hoisted\n";
             hoist(I);
             //Iterate through use_list of the I 
 
             for(Value::use_iterator U = I.use_begin();U != I.use_end();++U){
               Instruction *user = dyn_cast<Instruction>(*U);
-              errs() << "#####user is invariant "  << CurLoop->hasLoopInvariantOperands(user) << "\n";
-              errs() << "#####is user safe to exec " << isSafeToExecuteUnconditionally(*user)  << "\n";
-              errs() << "#####this is not load inst " << !isa<LoadInst>(user) << "\n";
+              //errs() << "#####user is invariant "  << CurLoop->hasLoopInvariantOperands(user) << "\n";
+              //errs() << "#####is user safe to exec " << isSafeToExecuteUnconditionally(*user)  << "\n";
+              //errs() << "#####this is not load inst " << !isa<LoadInst>(user) << "\n";
                if(CurLoop->hasLoopInvariantOperands(user) &&  //user of I is now invariant
                    isSafeToExecuteUnconditionally(*user) &&  // instruction writes to User will guarantee to exec
                    !isa<LoadInst>(user)) // not a load instruction
@@ -496,10 +527,13 @@ void SLICM::HoistRegion(DomTreeNode *N) {
           }
           
           //speculative hoisting for load
-          if(hoistValue == 2){            
+          if(hoistValue == 2){   
+            //errs() << "Create Dummy \n";         
             insertDummyforSplit(I);
-            errs() << "Hoist eligible load" << "\n";
+            //errs() << "Hoist eligible load" <<  I << "\n";
             hoist(I); 
+            //if(ldToDummyMap.find(&I) !=ldToDummyMap.end())
+            //  createRedoBB(I);
             /*
             if(loadToDependentInstMap.count(&I) == 0){
               errs() << "first encounter of eligible load" << I <<  "\n";
@@ -525,16 +559,18 @@ void SLICM::HoistRegion(DomTreeNode *N) {
             
 
             //Allocate new branch instruction 
-            AllocaInst *flag = new AllocaInst(llvm::Type::getInt1Ty(I.getParent()->getContext()), "flag", I.getParent()->getTerminator());
+            AllocaInst *flag = new AllocaInst(llvm::Type::getInt1Ty(Preheader->getContext()), "flag", Preheader->getTerminator());
+            StoreInst* ST  = new StoreInst(llvm::ConstantInt::getFalse(Preheader->getContext()),flag,Preheader->getTerminator());            
+            ldToFlagMap[&I] = ST;
 
 
-          } 
-        
-      }
+        }
         
     }
 
+  }
   const std::vector<DomTreeNode*> &Children = N->getChildren();
+  //errs() <<  "finishg hoisting \n";
   for (unsigned i = 0, e = Children.size(); i != e; ++i)
     HoistRegion(Children[i]);
 }
@@ -552,26 +588,46 @@ void SLICM::insertDummyforSplit(Instruction &I) {
   Instruction* dummy = llvm::BinaryOperator::Create(Instruction::Add, i32_val1 , i32_val2, "dummy", &I );
 
   ldToDummyMap[&I] = dummy;
-  //**********************Test***********************************
-  for(BasicBlock::iterator ii = bb->begin(); ii!= bb->end();++ii) {
-    errs() << "Instruction in this BB is " << *ii <<  "\n";
-    if(ii->isIdenticalTo(dummy)){
-      errs() << "current inst is dummy" << "\n";
-    }
-  }
-  //bb->getInstList().insert(&I, dummy);
+  dummyToLdMap[dummy] = &I;
+  dummyList.push_back(dummy);
 
 }
 
 
-void SLICM::removeDummyInst() {
-  Loop* L = CurLoop;
-  //CurLoop = L;
-  for(Loop::block_iterator BB = L->block_begin(); BB != L->block_end(); ++BB){
-    for(BasicBlock::iterator I =(*BB)->begin(); I != (*BB)->end(); ++I){
-      
+
+// Create redoBB at the given dummy hoisted load instruction 
+void SLICM::createRedoBB(Instruction &I) {
+
+  Instruction* dummy = ldToDummyMap[&I];
+  errs() << "Dummy found" << *dummy <<"\n";
+  Instruction* flag = ldToFlagMap[&I];
+  BasicBlock *BB1 = dummy->getParent();
+  BasicBlock *BB3 = SplitBlock(BB1, dummy, this);
+  BasicBlock *BB2 = SplitEdge(BB1, BB3, this);
+  std::swap(BB2, BB3);
+  errs() << "flag " << *flag << " operand " << *(flag->getOperand(0)) <<  "\n";
+
+  //TODO: DEBUG SEGFAUt by fixing value error
+  /*
+  opt: /opt/llvm-source/include/llvm/Support/Casting.h:237: 
+  typename llvm::enable_if<llvm::is_same<Y, typename llvm::simplify_type<From>::SimpleType>, typename llvm::cast_retty<X, Y*>::ret_type>::type llvm::cast(Y*) [with X = llvm::PointerType; Y = llvm::Type; typename llvm::enable_if<llvm::is_same<Y, typename llvm::simplify_type<From>::SimpleType>, typename llvm::cast_retty<X, Y*>::ret_type>::type = llvm::PointerType*]: 
+  Assertion `isa<X>(Val) && "cast<Ty>() argument of incompatible type!"' failed.*/
+
+  //LoadInst* LD = new LoadInst(flag->getOperand(0), "loadflag", BB1);
+
+ /* llvm::BranchInst::Create(BB1, BB2, LD, BB1->getTerminator());
+
+  
+  for(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin(); it != loadToDependentInstMap.end();++it){
+    std::vector<Instruction*> depInsts = it->second;
+    Instruction *ld = it->first;
+    if(ld->isIdenticalTo(&I)) {
+
     }
-  }  
+
+  }
+  */
+
 }
 //TODO: Return the Instruction (load) that given I will become invariant after hoisting
 /*
