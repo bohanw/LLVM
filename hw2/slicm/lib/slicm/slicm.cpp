@@ -399,7 +399,10 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
 
       ICmpInst *cmp = new ICmpInst(B->getTerminator(), ICmpInst::ICMP_EQ , I , st->getOperand(0), "cmp");
 
+
      //TODO: Update and OR with the old flag value
+      
+
     }
   }
 
