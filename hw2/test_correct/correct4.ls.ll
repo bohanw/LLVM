@@ -1,4 +1,4 @@
-; ModuleID = 'correct1.slicm.bc'
+; ModuleID = 'correct4.ls.bc'
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -40,47 +40,50 @@ for.inc:                                          ; preds = %for.body
 
 for.end:                                          ; preds = %for.cond
   store i32 0, i32* %i, align 4
-  %4 = load i32* getelementptr inbounds ([100 x i32]* @a, i32 0, i64 97), align 4
-  %flag = alloca i1
   br label %for.cond1
 
-for.cond1:                                        ; preds = %for.inc9, %for.end
-  %5 = load i32* %i, align 4
-  %cmp2 = icmp slt i32 %5, 100
-  br i1 %cmp2, label %for.body3, label %for.end11
+for.cond1:                                        ; preds = %for.inc12, %for.end
+  %4 = load i32* %i, align 4
+  %cmp2 = icmp slt i32 %4, 100
+  br i1 %cmp2, label %for.body3, label %for.end14
 
 for.body3:                                        ; preds = %for.cond1
-  %6 = load i32* %i, align 4
-  %cmp4 = icmp sgt i32 %6, 999
-  br i1 %cmp4, label %if.then, label %if.end
+  %5 = load i32* %i, align 4
+  %idxprom4 = sext i32 %5 to i64
+  %arrayidx5 = getelementptr inbounds [100 x i32]* @a, i32 0, i64 %idxprom4
+  %6 = load i32* %arrayidx5, align 4
+  %cmp6 = icmp sgt i32 %6, 95
+  br i1 %cmp6, label %if.then, label %if.end
 
 if.then:                                          ; preds = %for.body3
   %7 = load i32* %i, align 4
   %add = add nsw i32 %7, 1
-  %idxprom5 = sext i32 %add to i64
-  %arrayidx6 = getelementptr inbounds [100 x i32]* @a, i32 0, i64 %idxprom5
-  store i32 1, i32* %arrayidx6, align 4
+  %idxprom7 = sext i32 %add to i64
+  %arrayidx8 = getelementptr inbounds [100 x i32]* @a, i32 0, i64 %idxprom7
+  store i32 1, i32* %arrayidx8, align 4
   br label %if.end
 
 if.end:                                           ; preds = %if.then, %for.body3
-  %dummy = add i32 0, 0
-  %8 = load i32* %i, align 4
-  %idxprom7 = sext i32 %8 to i64
-  %arrayidx8 = getelementptr inbounds [100 x i32]* @b, i32 0, i64 %idxprom7
-  store i32 %4, i32* %arrayidx8, align 4
-  br label %for.inc9
-
-for.inc9:                                         ; preds = %if.end
+  %8 = load i32* getelementptr inbounds ([100 x i32]* @a, i32 0, i64 97), align 4
+  %add9 = add nsw i32 %8, 5
+  %mul = mul nsw i32 %add9, 3
   %9 = load i32* %i, align 4
-  %inc10 = add nsw i32 %9, 1
-  store i32 %inc10, i32* %i, align 4
+  %idxprom10 = sext i32 %9 to i64
+  %arrayidx11 = getelementptr inbounds [100 x i32]* @b, i32 0, i64 %idxprom10
+  store i32 %mul, i32* %arrayidx11, align 4
+  br label %for.inc12
+
+for.inc12:                                        ; preds = %if.end
+  %10 = load i32* %i, align 4
+  %inc13 = add nsw i32 %10, 1
+  store i32 %inc13, i32* %i, align 4
   br label %for.cond1
 
-for.end11:                                        ; preds = %for.cond1
-  %10 = load i32* getelementptr inbounds ([100 x i32]* @b, i32 0, i64 97), align 4
-  %11 = load i32* getelementptr inbounds ([100 x i32]* @b, i32 0, i64 98), align 4
-  %12 = load i32* getelementptr inbounds ([100 x i32]* @b, i32 0, i64 99), align 4
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([12 x i8]* @.str, i32 0, i32 0), i32 %10, i32 %11, i32 %12)
+for.end14:                                        ; preds = %for.cond1
+  %11 = load i32* getelementptr inbounds ([100 x i32]* @b, i32 0, i64 97), align 4
+  %12 = load i32* getelementptr inbounds ([100 x i32]* @b, i32 0, i64 98), align 4
+  %13 = load i32* getelementptr inbounds ([100 x i32]* @b, i32 0, i64 99), align 4
+  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([12 x i8]* @.str, i32 0, i32 0), i32 %11, i32 %12, i32 %13)
   ret i32 0
 }
 

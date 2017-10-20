@@ -1,0 +1,11 @@
+
+Dependent instruction   store i32 %inc10, i32* %i, align 4
+Dependent instruction   store i32 %inc10, i32* %i, align 4
+Dependent instruction   store i32 %inc10, i32* %i, align 4
+The inst =   %7 = load i32* getelementptr inbounds ([100 x i32]* @a, i32 0, i64 97), align 4 is ELIGIBLE LOAD
+Dependent instruction   store i32 %inc10, i32* %i, align 4
+Dependent instruction   store i32 %inc10, i32* %i, align 4
+Dependent instruction   store i32 %inc, i32* %i, align 4
+Dependent instruction   store i32 %inc, i32* %i, align 4
+Dependent instruction   store i32 %inc, i32* %i, align 4
+Dependent instruction   store i32 %inc, i32* %i, align 4
