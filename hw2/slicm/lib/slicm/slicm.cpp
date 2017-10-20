@@ -136,9 +136,9 @@ namespace {
         //***********NEW DATA structure for SLICM************
 
     // From LAMP profiler
-    
-    std::map<std::pair<Instruction*, Instruction*>*, unsigned int> dep_count_map ;
     LAMPLoadProfile *LLP;
+    std::map<std::pair<Instruction*, Instruction*>*, unsigned int> dep_count_map = LLP->DepToTimesMap;
+
     
 
     std::vector<Instruction*> eligibleLoads;
@@ -149,6 +149,7 @@ namespace {
 
     std::vector<Instruction*> dummyList;
     std::map<Instruction*, Instruction*> ldToFlagMap;
+    std::vector<Instruction*> StList;
     //**************************************************
 
     /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
@@ -225,6 +226,7 @@ namespace {
     //Instruction* SLICM::findDependentLoad(Istruction &I);
 
     //void removeDummyInst();
+    void populateRedoBBInsts(BasicBlock* RedoBB, Instruction &I);
     void createRedoBB(Instruction &I);
   };
 }
@@ -328,7 +330,10 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
 
     // Sample code for find eligible load
         // elig_ld = isEligibleLoad(*I);
- 
+      //
+      if(isa<StoreInst>(I)) StList.push_back(I);
+      
+
       MayThrow |= I->mayThrow();
     }
   }
@@ -349,9 +354,9 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   if (Preheader)
     HoistRegion(DT->getNode(L->getHeader()));
 
-  
   //***************************************************************************
-
+  //***************************************************************************
+  /*
   for(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin();it!=loadToDependentInstMap.end();++it){
     Instruction *I = it->first;
     std::vector<Instruction*>  vec = it->second;
@@ -370,14 +375,36 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   for(std::map<Instruction*, Instruction*>::iterator it = depToLoadMap.begin(); it!= depToLoadMap.end(); ++it){
     errs() << "consumer inst " << it->first << "load inst " << it->second << "\n";
   }
+  */
+  for(std::vector<Instruction*>::iterator it = StList.begin();it!=StList.end();++it){
+    errs() << "StoreInst " << **it <<"\n";
+    errs()  << "Number of Ops " << (*it)->getNumOperands() << " Store Op1 " << *((*it)->getOperand(0))<< " Store Op2 " << *((*it)->getOperand(1))<< "\n";
+  }
 
 
   //***************************************************************************
+  //***************************************************************************
 
+  // Locate all dummies in the current loop and split at dummies based on 
+  // the ldToDep map
   for(std::map<Instruction*,Instruction*>::iterator it = ldToDummyMap.begin();it!=ldToDummyMap.end();++it){
     Instruction *I = it->first;
     createRedoBB(*I);
+    Instruction *fl = ldToFlagMap[I];
+    for(std::vector<Instruction*>::iterator ii = StList.begin();ii!=StList.end();++ii){
+      Instruction *st = *ii;
+      BasicBlock *B = (*ii)->getParent();
+      errs() << "ld op type " << *(I->getType()) << "\n"; 
+      errs() << "st op type " << *(st->getOperand(0)->getType()) << "\n"; 
+
+      ICmpInst *cmp = new ICmpInst(B->getTerminator(), ICmpInst::ICMP_EQ , I , st->getOperand(0), "cmp");
+
+     //TODO: Update and OR with the old flag value
+    }
   }
+
+
+
   // Now that all loop invariants have been removed from the loop, promote any
   // memory references to scalars that we can.
   if (!DisablePromotion && Preheader && L->hasDedicatedExits()) {
@@ -391,6 +418,7 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   }
 
   // Clear out loops state information for the next iteration
+  // MODIFIED
   CurLoop = 0;
   Preheader = 0;
 
@@ -400,7 +428,6 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   ldToFlagMap.clear();
   dummyToLdMap.clear();
  
-
   // If this loop is nested inside of another one, save the alias information
   // for when we process the outer loop.
   if (L->getParentLoop())
@@ -499,7 +526,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
           && hoistValue != 0 
           && isSafeToExecuteUnconditionally(I)){
 
-          //The eligible instruction may or may not dependent on speculative load
+          //The eligible instruction may or may not depend on speculative load
           if(hoistValue == 1) {
             errs() << "eligible non-load instruction " << I << "  to be hoisted\n";
             hoist(I);
@@ -522,8 +549,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
                   loadToDependentInstMap[depLd].push_back(user);
                 }
               }
-              
-
+          
           }
           
           //speculative hoisting for load
@@ -532,14 +558,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
             insertDummyforSplit(I);
             //errs() << "Hoist eligible load" <<  I << "\n";
             hoist(I); 
-            //if(ldToDummyMap.find(&I) !=ldToDummyMap.end())
-            //  createRedoBB(I);
-            /*
-            if(loadToDependentInstMap.count(&I) == 0){
-              errs() << "first encounter of eligible load" << I <<  "\n";
-              loadToDependentInstMap[&I] = std::vector<Instruction*>();
-            }
-            */
+
             //Traversing use_list of the currect instruction
               for(Value::use_iterator U = I.use_begin();U != I.use_end();++U){
                 Instruction *user = dyn_cast<Instruction>(*U);
@@ -556,16 +575,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
                   loadToDependentInstMap[&I].push_back(user);
                 }
               } 
-            
-
-            //Allocate new branch instruction 
-            AllocaInst *flag = new AllocaInst(llvm::Type::getInt1Ty(Preheader->getContext()), "flag", Preheader->getTerminator());
-            StoreInst* ST  = new StoreInst(llvm::ConstantInt::getFalse(Preheader->getContext()),flag,Preheader->getTerminator());            
-            ldToFlagMap[&I] = ST;
-
-
-        }
-        
+        }       
     }
 
   }
@@ -581,6 +591,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
 void SLICM::insertDummyforSplit(Instruction &I) {
   //Create Dummy in front of I (speculative load to be hoisted)
   BasicBlock* bb = I.getParent();
+
   // Use of BinaryOperator::create dummy inst "add 0 0 0"
   llvm::Type *i32_type = llvm::IntegerType::getInt32Ty(bb->getContext());
   llvm::Constant *i32_val1 = llvm::ConstantInt::get(i32_type, 0, true);
@@ -593,54 +604,78 @@ void SLICM::insertDummyforSplit(Instruction &I) {
 
 }
 
+// Populate instructions onto RedoBB from load-to-dependentInst map
+// and Push all inst results to stack variable for enforcing SSA form
+void SLICM::populateRedoBBInsts(BasicBlock *RedoBB, Instruction &I) {
+  //or(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin();it != loadToDependentInstMap.end();++it) {
+    if(loadToDependentInstMap.find(&I) != loadToDependentInstMap.end()){
 
+      std::vector<Instruction*> deps = loadToDependentInstMap[&I];
+      errs() << "redo bb" << RedoBB->getName() << "\n";
+     
+      Instruction *ld_copy = I.clone();
+      ld_copy->insertBefore(RedoBB->getTerminator());
+      BasicBlock &entry = RedoBB->getParent()->getEntryBlock();
+    
+      errs() << "Entry Block " << entry.getName()<< "\n";
+
+      AllocaInst *var  = new AllocaInst(Type::getInt32Ty(entry.getContext()), "ld", entry.getTerminator());
+      //Get load
+      //errs() << "ld result " << I->getOperand(0) << "ld src " << ""
+      //Instruction *ld_copy = I.clone();
+
+      StoreInst *ST = new StoreInst(ld_copy,var);
+      ST->insertAfter(ld_copy);
+      //errs() << ""
+      
+      for(std::vector<Instruction*>::iterator it = deps.begin(); it!= deps.end();++it){
+          //errs() << " instruction " << **it << "\n";
+          Instruction *dep = (*it)->clone();
+          dep->insertBefore(RedoBB->getTerminator()) ;
+          AllocaInst *var_alloc = new AllocaInst(Type::getInt32Ty(entry.getContext()), "dependents", entry.getTerminator());
+          StoreInst *S = new StoreInst(dep, var_alloc);
+          S->insertAfter(dep);
+      }
+     
+      Instruction *flag = ldToFlagMap[&I];
+      new StoreInst(ConstantInt::getFalse(RedoBB->getContext()), flag, RedoBB->getTerminator());
+    } 
+    /* 
+    for(BasicBlock::iterator ii = RedoBB->begin(); ii != RedoBB->end();++ii){
+       errs() << "RedoBB inst " << *ii << "\n";
+    }*/
+  //}
+}
 
 // Create redoBB at the given dummy hoisted load instruction 
 void SLICM::createRedoBB(Instruction &I) {
-
+  
+  AllocaInst *flag = new AllocaInst(llvm::Type::getInt1Ty(Preheader->getContext()), "flag", Preheader->getTerminator());
+  new StoreInst(llvm::ConstantInt::getFalse(Preheader->getContext()),flag, Preheader->getTerminator());
+  ldToFlagMap[&I] = flag;            
   Instruction* dummy = ldToDummyMap[&I];
   errs() << "Dummy found" << *dummy <<"\n";
-  Instruction* flag = ldToFlagMap[&I];
+
+  // Split the basicblock containing a speculatively hoisted load at
+  // the dummy instruction
   BasicBlock *BB1 = dummy->getParent();
   BasicBlock *BB3 = SplitBlock(BB1, dummy, this);
   BasicBlock *BB2 = SplitEdge(BB1, BB3, this);
   std::swap(BB2, BB3);
-  errs() << "flag " << *flag << " operand " << *(flag->getOperand(0)) <<  "\n";
 
-  //TODO: DEBUG SEGFAUt by fixing value error
-  /*
-  opt: /opt/llvm-source/include/llvm/Support/Casting.h:237: 
-  typename llvm::enable_if<llvm::is_same<Y, typename llvm::simplify_type<From>::SimpleType>, typename llvm::cast_retty<X, Y*>::ret_type>::type llvm::cast(Y*) [with X = llvm::PointerType; Y = llvm::Type; typename llvm::enable_if<llvm::is_same<Y, typename llvm::simplify_type<From>::SimpleType>, typename llvm::cast_retty<X, Y*>::ret_type>::type = llvm::PointerType*]: 
-  Assertion `isa<X>(Val) && "cast<Ty>() argument of incompatible type!"' failed.*/
+  LoadInst* LD = new LoadInst(flag, "loadflag", BB1->getTerminator());
 
-  //LoadInst* LD = new LoadInst(flag->getOperand(0), "loadflag", BB1);
+  //Create the conditional branch pointg to RedoBB
+  llvm::BranchInst::Create(BB2, BB3, LD, BB1->getTerminator());
+  //Remove the original uncond branch
+  BB1->getTerminator()->eraseFromParent();
 
- /* llvm::BranchInst::Create(BB1, BB2, LD, BB1->getTerminator());
-
-  
-  for(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin(); it != loadToDependentInstMap.end();++it){
-    std::vector<Instruction*> depInsts = it->second;
-    Instruction *ld = it->first;
-    if(ld->isIdenticalTo(&I)) {
-
-    }
-
-  }
-  */
+  //Populate instructions depending on the hoisted load onto RedoBB
+  populateRedoBBInsts(BB2, I);
 
 }
-//TODO: Return the Instruction (load) that given I will become invariant after hoisting
-/*
-Instruction* SLICM::findDependentLoad(Instruction &I){
-  for(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin(); it!= loadToDependentInstMap.end();++it){
-    std::vector<Instruction*> vec = it->second;
 
-    for(std::vector<Instruction*>::iterator inst = vec.begin(); inst!= vec.end();++inst){
 
-    }
-  }
-}
-*/
 /// canSinkOrHoistInst - Return true if the hoister and sinker can handle this
 /// instruction.
 ///
@@ -810,7 +845,7 @@ void SLICM::sink(Instruction &I) {
     // This allows ValueHandlers and custom metadata to adjust itself.
     if (!I.use_empty())
       I.replaceAllUsesWith(UndefValue::get(I.getType()));
-    I.eraseFromParent();
+      I.eraseFromParent();
     return;
   }
 
