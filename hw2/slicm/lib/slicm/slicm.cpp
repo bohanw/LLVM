@@ -133,7 +133,7 @@ namespace {
     DenseMap<Loop*, AliasSetTracker*> LoopToAliasSetMap;
 
 
-        //***********NEW DATA structure for SLICM************
+    //***********NEW DATA structure for SLICM************
 
     // From LAMP profiler
     LAMPLoadProfile *LLP;
@@ -146,6 +146,7 @@ namespace {
     std::map<Instruction*, Instruction*> depToLoadMap;
     std::map<Instruction*, Instruction*> ldToDummyMap;
     std::map<Instruction*, Instruction*> dummyToLdMap;
+    std::map<Instruction*, Instruction*> instToStackVarMap;
 
     std::vector<Instruction*> dummyList;
     std::map<Instruction*, Instruction*> ldToFlagMap;
@@ -381,12 +382,48 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   // Locate all dummies in the current loop and split at dummies based on 
   // the ldToDep map
   
-  for(std::map<Instruction*,Instruction*>::iterator it = ldToDummyMap.begin();it!=ldToDummyMap.end();++it){
+  for(std::map<Instruction*,std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin();
+        it!=loadToDependentInstMap.end();++it)
+  {
     Instruction *I = it->first;
-   
-    createRedoBB(*I);
-   
-    Instruction *fl = ldToFlagMap[I];
+    std::vector<Instruction*> deps = it->second;
+    //createRedoBB(*I);
+    // ****************************************************************
+    //*****************Create RedoBB***********************************
+    // ****************************************************************
+
+    AllocaInst *flag = new AllocaInst(llvm::Type::getInt1Ty(Preheader->getContext()), "flag", Preheader->getTerminator());
+    new StoreInst(llvm::ConstantInt::getFalse(Preheader->getContext()),flag, Preheader->getTerminator());
+
+    Instruction* dummy = ldToDummyMap[I];
+    errs() << "Dummy found" << *dummy <<"\n";
+
+    // Split the basicblock containing a speculatively hoisted load at
+    // the dummy instruction
+    BasicBlock *BB1 = dummy->getParent();
+    BasicBlock *BB3 = SplitBlock(BB1, dummy, this);
+    BasicBlock *BB2 = SplitEdge(BB1, BB3, this);
+    std::swap(BB2, BB3);
+    //Load flag value and insert at the end of HomeBB
+    LoadInst* LD = new LoadInst(flag, "loadflag", BB1->getTerminator());
+    //Create the conditional branch pointg to RedoBB
+    llvm::BranchInst::Create(BB2, BB3, LD, BB1->getTerminator());
+    //Remove the original uncond branch
+    BB1->getTerminator()->eraseFromParent();   
+
+    // ****************************************************************
+    // **************Populate Instruction on RedoBB********************
+    // ****************************************************************
+
+    populateRedoBBInsts(BB2,*I);
+
+    //Instruction *flag = ldToFlagMap[&I];
+    // Reset flag back to flag=0 at the end of RedoBB (LICM patch up done)
+    new StoreInst(ConstantInt::getFalse(BB2->getContext()), flag, BB2->getTerminator());
+
+    // ****************************************************************
+    //
+    // *****************************************************************
     for(std::vector<Instruction*>::iterator ii = StList.begin();ii!=StList.end();++ii)
     {
       Instruction *st = *ii;
@@ -396,15 +433,16 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
 
       ICmpInst *cmp = new ICmpInst(B->getTerminator(), ICmpInst::ICMP_EQ , I , st->getOperand(0), "cmp");
       errs() << "cmp op type " << *(cmp->getType()) << "\n"; 
-      errs() << "fl " << fl << "fl addr" << *fl << "\n";
+      errs() << "fl " << flag << "fl addr" << *flag << "\n";
      //TODO: Update and OR with the old flag value
-      LoadInst *ld = new LoadInst(fl,"flag_set", B->getTerminator());
+      LoadInst *ld = new LoadInst(flag,"flag_set", B->getTerminator());
       //errs() << "after ld " << "\n"; 
      // fl = llvm::BinaryOperator::Create(Instruction::Or,ld, cmp, "dummy");
       Instruction *newflag =llvm::BinaryOperator::Create(Instruction::Or,ld, cmp, "OR_update_flag",B->getTerminator());
-      new StoreInst(newflag,ldToFlagMap[I] , B->getTerminator());
+      new StoreInst(newflag, flag, B->getTerminator());
     }
   }
+
 
 
 
@@ -612,36 +650,38 @@ void SLICM::insertDummyforSplit(Instruction &I) {
 // Populate instructions onto RedoBB from load-to-dependentInst map
 // and Push all inst results to stack variable for enforcing SSA form
 void SLICM::populateRedoBBInsts(BasicBlock *RedoBB, Instruction &I) {
-  //or(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin();it != loadToDependentInstMap.end();++it) {
-    if(loadToDependentInstMap.find(&I) != loadToDependentInstMap.end()){
 
       std::vector<Instruction*> deps = loadToDependentInstMap[&I];
       errs() << "redo bb" << RedoBB->getName() << "\n";
-     
+      BasicBlock &entry = Preheader->getParent()->getEntryBlock();
+
+      AllocaInst *ld_var =  new AllocaInst(Type::getInt32Ty(entry.getContext()), "ld", entry.getTerminator());
+      StoreInst *STR =  new StoreInst(&I, ld_var);
+      STR->insertAfter(&I);
+      instToStackVarMap[&I] = ld_var;
+
       Instruction *ld_copy = I.clone();
       ld_copy->insertBefore(RedoBB->getTerminator());
-      BasicBlock &entry = RedoBB->getParent()->getEntryBlock();
-    
-      errs() << "Entry Block " << entry.getName()<< "\n";
-
       AllocaInst *var  = new AllocaInst(Type::getInt32Ty(entry.getContext()), "ld", entry.getTerminator());
-
       StoreInst *ST = new StoreInst(ld_copy,var);
       ST->insertAfter(ld_copy);
+      instToStackVarMap[ld_copy] = var;
       //errs() << ""
       
       for(std::vector<Instruction*>::iterator it = deps.begin(); it!= deps.end();++it){
           //errs() << " instruction " << **it << "\n";
-          Instruction *dep = (*it)->clone();
-          dep->insertBefore(RedoBB->getTerminator()) ;
-          AllocaInst *var_alloc = new AllocaInst(Type::getInt32Ty(entry.getContext()), "StackVars", entry.getTerminator());
-          StoreInst *S = new StoreInst(dep, var_alloc);
+          Instruction *dep = *it;
+          AllocaInst *stack_var = new AllocaInst(Type::getInt32Ty(entry.getContext()), "StackVars", entry.getTerminator());
+          StoreInst *S = new StoreInst(dep, stack_var);
           S->insertAfter(dep);
-      }
-     
-      Instruction *flag = ldToFlagMap[&I];
-      new StoreInst(ConstantInt::getFalse(RedoBB->getContext()), flag, RedoBB->getTerminator());
-    } 
+
+          Instruction *dep_copy = (*it)->clone();
+          dep_copy->insertBefore(RedoBB->getTerminator()) ;
+          AllocaInst *var_alloc = new AllocaInst(Type::getInt32Ty(entry.getContext()), "StackVars_Redo", entry.getTerminator());
+          S = new StoreInst(dep_copy, var_alloc);
+
+          S->insertAfter(dep_copy);
+      }    
     /* 
     for(BasicBlock::iterator ii = RedoBB->begin(); ii != RedoBB->end();++ii){
        errs() << "RedoBB inst " << *ii << "\n";
@@ -650,12 +690,9 @@ void SLICM::populateRedoBBInsts(BasicBlock *RedoBB, Instruction &I) {
 }
 
 // Create redoBB at the given dummy hoisted load instruction 
+
 void SLICM::createRedoBB(Instruction &I) {
-  
-  AllocaInst *flag = new AllocaInst(llvm::Type::getInt1Ty(Preheader->getContext()), "flag", Preheader->getTerminator());
-  new StoreInst(llvm::ConstantInt::getFalse(Preheader->getContext()),flag, Preheader->getTerminator());
-    
-  ldToFlagMap[&I] = flag;            
+   /*      
   Instruction* dummy = ldToDummyMap[&I];
   errs() << "Dummy found" << *dummy <<"\n";
 
@@ -672,9 +709,9 @@ void SLICM::createRedoBB(Instruction &I) {
   llvm::BranchInst::Create(BB2, BB3, LD, BB1->getTerminator());
   //Remove the original uncond branch
   BB1->getTerminator()->eraseFromParent();
-
+*/
   //Populate instructions depending on the hoisted load onto RedoBB
-  populateRedoBBInsts(BB2, I);
+  //populateRedoBBInsts(BB2, I);
 
 }
 
