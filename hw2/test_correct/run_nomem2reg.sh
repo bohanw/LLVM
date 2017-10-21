@@ -31,10 +31,8 @@ g++ -o $fname.slicm $fname.slicm.s
 opt -dot-cfg $fname.slicm.bc >& /dev/null
 dot -Tpdf cfg.main.dot -o $fname.pdf
 
-opt -dot-cfg $fname.ls.bc >& /dev/null
-dot -Tpdf cfg.main.dot -o $fname.prelicm.pdf
 ### Run MEM2REG pass
-opt -basicaa -load /home/bohanw/583/hw2/slicm/Release+Asserts/lib/slicm.so -lamp-inst-cnt -lamp-map-loop -lamp-load-profile -profile-loader -profile-info-file=llvmprof.out -slicm -mem2reg  < $fname.ls.bc > $fname.slicm.mem2reg.bc 
+#opt -basicaa -load /home/bohanw/583/hw2/slicm/Release+Asserts/lib/slicm.so -lamp-inst-cnt -lamp-map-loop -lamp-load-profile -profile-loader  -profile-info-file=llvmprof.out  -mem2reg  < $fname.slicm.bc > $fname.slicm.mem2reg.bc 
 
-opt -dot-cfg $fname.slicm.mem2reg.bc >& /dev/null
-dot -Tpdf cfg.main.dot -o $fname.mem2reg.pdf
+#opt -dot-cfg $fname.slicm.mem2reg.bc >& /dev/null
+#oot -Tpdf cfg.main.dot -o $fname.mem2reg.pdf
