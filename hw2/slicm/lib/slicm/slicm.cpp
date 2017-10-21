@@ -137,7 +137,7 @@ namespace {
 
     // From LAMP profiler
     LAMPLoadProfile *LLP;
-    std::map<std::pair<Instruction*, Instruction*>*, unsigned int> dep_count_map = LLP->DepToTimesMap;
+    std::map<std::pair<Instruction*, Instruction*>*, unsigned int> dep_count_map;
 
     
 
@@ -331,9 +331,8 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     // Sample code for find eligible load
         // elig_ld = isEligibleLoad(*I);
       //
-      if(isa<StoreInst>(I)) StList.push_back(I);
+      //if(isa<StoreInst>(I)) StList.push_back(I);
       
-
       MayThrow |= I->mayThrow();
     }
   }
@@ -376,33 +375,34 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     errs() << "consumer inst " << it->first << "load inst " << it->second << "\n";
   }
   */
-  for(std::vector<Instruction*>::iterator it = StList.begin();it!=StList.end();++it){
-    errs() << "StoreInst " << **it <<"\n";
-    errs()  << "Number of Ops " << (*it)->getNumOperands() << " Store Op1 " << *((*it)->getOperand(0))<< " Store Op2 " << *((*it)->getOperand(1))<< "\n";
-  }
-
-
   //***************************************************************************
   //***************************************************************************
 
   // Locate all dummies in the current loop and split at dummies based on 
   // the ldToDep map
+  
   for(std::map<Instruction*,Instruction*>::iterator it = ldToDummyMap.begin();it!=ldToDummyMap.end();++it){
     Instruction *I = it->first;
+   
     createRedoBB(*I);
+   
     Instruction *fl = ldToFlagMap[I];
-    for(std::vector<Instruction*>::iterator ii = StList.begin();ii!=StList.end();++ii){
+    for(std::vector<Instruction*>::iterator ii = StList.begin();ii!=StList.end();++ii)
+    {
       Instruction *st = *ii;
       BasicBlock *B = (*ii)->getParent();
       errs() << "ld op type " << *(I->getType()) << "\n"; 
       errs() << "st op type " << *(st->getOperand(0)->getType()) << "\n"; 
 
       ICmpInst *cmp = new ICmpInst(B->getTerminator(), ICmpInst::ICMP_EQ , I , st->getOperand(0), "cmp");
-
-
+      errs() << "cmp op type " << *(cmp->getType()) << "\n"; 
+      errs() << "fl " << fl << "fl addr" << *fl << "\n";
      //TODO: Update and OR with the old flag value
-      
-
+      LoadInst *ld = new LoadInst(fl,"flag_set", B->getTerminator());
+      //errs() << "after ld " << "\n"; 
+     // fl = llvm::BinaryOperator::Create(Instruction::Or,ld, cmp, "dummy");
+      Instruction *newflag =llvm::BinaryOperator::Create(Instruction::Or,ld, cmp, "OR_update_flag",B->getTerminator());
+      new StoreInst(newflag,ldToFlagMap[I] , B->getTerminator());
     }
   }
 
@@ -430,7 +430,9 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   ldToDummyMap.clear();
   ldToFlagMap.clear();
   dummyToLdMap.clear();
- 
+  StList.clear();
+  //dummyList.clear();
+
   // If this loop is nested inside of another one, save the alias information
   // for when we process the outer loop.
   if (L->getParentLoop())
@@ -546,7 +548,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
                    {
                   //current user of Inst I is invariant after hoist
 
-                  errs() << "****** add instruction " << *user << " to loadToDependentInstMap *****" << "\n";
+                  //errs() << "****** add instruction " << *user << " to loadToDependentInstMap *****" << "\n";
                   Instruction *depLd = depToLoadMap[&I];
                   depToLoadMap[user] = depLd;
                   loadToDependentInstMap[depLd].push_back(user);
@@ -570,7 +572,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
                    !isa<LoadInst>(user))// not a load instruction
                 {                
 
-                  errs() << "****** add instruction " << *user << " to loadToDependentInstMap *****" << "\n";
+                  //errs() << "****** add instruction " << *user << " to loadToDependentInstMap *****" << "\n";
                   if(depToLoadMap.count(user) == 0){
                     depToLoadMap[user] = &I;
                   }
@@ -623,9 +625,6 @@ void SLICM::populateRedoBBInsts(BasicBlock *RedoBB, Instruction &I) {
       errs() << "Entry Block " << entry.getName()<< "\n";
 
       AllocaInst *var  = new AllocaInst(Type::getInt32Ty(entry.getContext()), "ld", entry.getTerminator());
-      //Get load
-      //errs() << "ld result " << I->getOperand(0) << "ld src " << ""
-      //Instruction *ld_copy = I.clone();
 
       StoreInst *ST = new StoreInst(ld_copy,var);
       ST->insertAfter(ld_copy);
@@ -635,7 +634,7 @@ void SLICM::populateRedoBBInsts(BasicBlock *RedoBB, Instruction &I) {
           //errs() << " instruction " << **it << "\n";
           Instruction *dep = (*it)->clone();
           dep->insertBefore(RedoBB->getTerminator()) ;
-          AllocaInst *var_alloc = new AllocaInst(Type::getInt32Ty(entry.getContext()), "dependents", entry.getTerminator());
+          AllocaInst *var_alloc = new AllocaInst(Type::getInt32Ty(entry.getContext()), "StackVars", entry.getTerminator());
           StoreInst *S = new StoreInst(dep, var_alloc);
           S->insertAfter(dep);
       }
@@ -655,6 +654,7 @@ void SLICM::createRedoBB(Instruction &I) {
   
   AllocaInst *flag = new AllocaInst(llvm::Type::getInt1Ty(Preheader->getContext()), "flag", Preheader->getTerminator());
   new StoreInst(llvm::ConstantInt::getFalse(Preheader->getContext()),flag, Preheader->getTerminator());
+    
   ldToFlagMap[&I] = flag;            
   Instruction* dummy = ldToDummyMap[&I];
   errs() << "Dummy found" << *dummy <<"\n";
