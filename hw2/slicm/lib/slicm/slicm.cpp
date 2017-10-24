@@ -151,6 +151,7 @@ namespace {
     std::vector<Instruction*> dummyList;
     std::map<Instruction*, Instruction*> ldToFlagMap;
     std::vector<Instruction*> StList;
+    std::vector<Instruction*> StSVList;
     //**************************************************
 
     /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
@@ -258,13 +259,13 @@ bool SLICM::isEligibleLoad(Instruction &I) {
         Instruction *User = dyn_cast<Instruction>(*UI);
         if(CurLoop->contains(User)){
           if(isa<StoreInst>(User)){
-            errs()<< "Dependent instruction " << *User << " of Instruction " << I << "\n";
+            //errs()<< "Dependent instruction " << *User << " of Instruction " << I << "\n";
             return false;
           }
         }
       }
     }
-    errs() << "The inst = " << I << " is ELIGIBLE LOAD" << "\n";  
+    //errs() << "The inst = " << I << " is ELIGIBLE LOAD" << "\n";  
     return true;
   }
   else return false;
@@ -332,7 +333,7 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     // Sample code for find eligible load
         // elig_ld = isEligibleLoad(*I);
       //
-      //if(isa<StoreInst>(I)) StList.push_back(I);
+      if(isa<StoreInst>(I)) StList.push_back(I);
       
       MayThrow |= I->mayThrow();
     }
@@ -382,8 +383,7 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   // Locate all dummies in the current loop and split at dummies based on 
   // the ldToDep map
   
-  for(std::map<Instruction*,std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin();
-        it!=loadToDependentInstMap.end();++it)
+for(std::map<Instruction*, std::vector<Instruction*> >::iterator it = loadToDependentInstMap.begin();it!=loadToDependentInstMap.end();++it)
   {
     Instruction *I = it->first;
     std::vector<Instruction*> deps = it->second;
@@ -391,7 +391,6 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     // ****************************************************************
     //*****************Create RedoBB***********************************
     // ****************************************************************
-
     AllocaInst *flag = new AllocaInst(llvm::Type::getInt1Ty(Preheader->getContext()), "flag", Preheader->getTerminator());
     new StoreInst(llvm::ConstantInt::getFalse(Preheader->getContext()),flag, Preheader->getTerminator());
 
@@ -411,9 +410,9 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     //Remove the original uncond branch
     BB1->getTerminator()->eraseFromParent();   
 
-    // ****************************************************************
-    // **************Populate Instruction on RedoBB********************
-    // ****************************************************************
+    // ******************************************************************************************
+    // **************Populate Instruction on RedoBB and store results in stack vars***************
+    // *******************************************************************************************
 
     populateRedoBBInsts(BB2,*I);
 
@@ -421,31 +420,75 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     // Reset flag back to flag=0 at the end of RedoBB (LICM patch up done)
     new StoreInst(ConstantInt::getFalse(BB2->getContext()), flag, BB2->getTerminator());
 
-    // ****************************************************************
-    //
-    // *****************************************************************
+    // *******************************************************************************
+    // For every load instruction check for possible aliasing with hoisted load.
+    // assert the flag value if aliasing occurs 
+    // *******************************************************************************
     for(std::vector<Instruction*>::iterator ii = StList.begin();ii!=StList.end();++ii)
     {
       Instruction *st = *ii;
       BasicBlock *B = (*ii)->getParent();
-      errs() << "ld op type " << *(I->getType()) << "\n"; 
-      errs() << "st op type " << *(st->getOperand(0)->getType()) << "\n"; 
-
-      ICmpInst *cmp = new ICmpInst(B->getTerminator(), ICmpInst::ICMP_EQ , I , st->getOperand(0), "cmp");
-      errs() << "cmp op type " << *(cmp->getType()) << "\n"; 
-      errs() << "fl " << flag << "fl addr" << *flag << "\n";
+      ICmpInst *cmp = new ICmpInst(B->getTerminator(), ICmpInst::ICMP_EQ , I->getOperand(0) , st->getOperand(1), "cmp");
      //TODO: Update and OR with the old flag value
       LoadInst *ld = new LoadInst(flag,"flag_set", B->getTerminator());
-      //errs() << "after ld " << "\n"; 
-     // fl = llvm::BinaryOperator::Create(Instruction::Or,ld, cmp, "dummy");
-      Instruction *newflag =llvm::BinaryOperator::Create(Instruction::Or,ld, cmp, "OR_update_flag",B->getTerminator());
+
+    
+      Instruction *newflag =llvm::BinaryOperator::Create(Instruction::Or, ld, cmp, "OR_update_flag",B->getTerminator());
       new StoreInst(newflag, flag, B->getTerminator());
+
     }
+
+    for(std::map<Instruction*, Instruction*>::iterator INST = instToStackVarMap.begin();INST != instToStackVarMap.end();++INST) {
+      errs() << " **Inst** " << *(INST->first) << " **stack vars** " << *(INST->second) << "\n";
+    }  
+    
+    //Replace Operands
+    for(Value::use_iterator UI = I->use_begin();UI!=I->use_end();++UI) {
+      Instruction *user = dyn_cast<Instruction>(*UI);
+      for(unsigned int i = 0, e = I->getNumOperands();i!=e;++i){
+        Value *OP = user->getOperand(i);
+        Value *VAR = dyn_cast<Value>(instToStackVarMap[I]);
+        errs() << "User operand " << i << " is  " << *OP << " Var value " << *VAR << " ADDR " << VAR << "\n";
+        if(OP == I && std::find(StSVList.begin(), StSVList.end(),user) == StSVList.end()){
+          errs() << "replace operand !!!" << *OP << " with " << *I << "\n";
+          LoadInst *stackvar = new LoadInst(instToStackVarMap[I], "loadstackvar", user);
+          user->setOperand(i,stackvar);
+        }
+      }  
+    }
+    //Dependent variables
+
+    for(std::vector<Instruction*>::iterator it = deps.begin(); it!= deps.end();++it){
+      Instruction *dep = *it;
+       for(Value::use_iterator UI = dep->use_begin();UI!=dep->use_end();++UI) {
+        Instruction *user = dyn_cast<Instruction>(*UI);
+        for(unsigned int i = 0, e = I->getNumOperands();i!=e;++i){
+          Value *OP = user->getOperand(i);
+          Value *VAR = dyn_cast<Value>(instToStackVarMap[dep]);
+          errs() << "User operand " << i << " is  " << *OP << " Var value " << *VAR << " ADDR " << VAR << "\n";
+          if(OP == dep && std::find(StSVList.begin(), StSVList.end(),user) == StSVList.end()){
+            errs() << "replace operand !!!" << *OP << " with " << *I << "\n";
+            LoadInst *stackvar = new LoadInst(instToStackVarMap[dep], "loadstackvar", user);
+            user->setOperand(i,stackvar);
+          }
+        }  
+      } 
+    }
+    
   }
 
+  
 
-
-
+  // Clean up IRs by removing all dummy instructions
+  
+  for(std::map<Instruction*,Instruction*>::iterator DL = ldToDummyMap.begin();DL != ldToDummyMap.end();++DL){
+    //BasicBlock *dummyParent = DL->getParent();
+    Instruction *I = DL->first;
+    Instruction *dummy = DL->second;
+    //errs() << ""
+    dummy->eraseFromParent();
+  }
+  
   // Now that all loop invariants have been removed from the loop, promote any
   // memory references to scalars that we can.
   if (!DisablePromotion && Preheader && L->hasDedicatedExits()) {
@@ -469,6 +512,7 @@ bool SLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   ldToFlagMap.clear();
   dummyToLdMap.clear();
   StList.clear();
+  instToStackVarMap.clear();
   //dummyList.clear();
 
   // If this loop is nested inside of another one, save the alias information
@@ -562,16 +606,16 @@ void SLICM::HoistRegion(DomTreeNode *N) {
       // if all of the operands of the instruction are loop invariant and if it
       // is safe to hoist the instruction.
       //
-      errs() << "check the hoist status of instruction " << I << "\n ";
+      //errs() << "check the hoist status of instruction " << I << "\n ";
       int hoistValue = canSinkOrHoistInst(I);
-      errs() << "hoistValue  =  " << hoistValue << "\n\n";
+      //errs() << "hoistValue  =  " << hoistValue << "\n\n";
       if (CurLoop->hasLoopInvariantOperands(&I)  
           && hoistValue != 0 
           && isSafeToExecuteUnconditionally(I)){
 
           //The eligible instruction may or may not depend on speculative load
           if(hoistValue == 1) {
-            errs() << "eligible non-load instruction " << I << "  to be hoisted\n";
+            //errs() << "eligible non-load instruction " << I << "  to be hoisted\n";
             hoist(I);
             //Iterate through use_list of the I 
 
@@ -591,7 +635,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
                   depToLoadMap[user] = depLd;
                   loadToDependentInstMap[depLd].push_back(user);
                 }
-              }
+            }
           
           }
           
@@ -601,7 +645,7 @@ void SLICM::HoistRegion(DomTreeNode *N) {
             insertDummyforSplit(I);
             //errs() << "Hoist eligible load" <<  I << "\n";
             hoist(I); 
-
+            loadToDependentInstMap[&I];
             //Traversing use_list of the currect instruction
               for(Value::use_iterator U = I.use_begin();U != I.use_end();++U){
                 Instruction *user = dyn_cast<Instruction>(*U);
@@ -655,33 +699,39 @@ void SLICM::populateRedoBBInsts(BasicBlock *RedoBB, Instruction &I) {
       errs() << "redo bb" << RedoBB->getName() << "\n";
       BasicBlock &entry = Preheader->getParent()->getEntryBlock();
 
-      AllocaInst *ld_var =  new AllocaInst(Type::getInt32Ty(entry.getContext()), "ld", entry.getTerminator());
+      AllocaInst *ld_var =  new AllocaInst(Type::getInt32Ty(entry.getContext()), "ld_StackVar", entry.getTerminator());
       StoreInst *STR =  new StoreInst(&I, ld_var);
       STR->insertAfter(&I);
       instToStackVarMap[&I] = ld_var;
-
+      StSVList.push_back(STR);
       Instruction *ld_copy = I.clone();
       ld_copy->insertBefore(RedoBB->getTerminator());
-      AllocaInst *var  = new AllocaInst(Type::getInt32Ty(entry.getContext()), "ld", entry.getTerminator());
-      StoreInst *ST = new StoreInst(ld_copy,var);
+      StoreInst *ST = new StoreInst(ld_copy,ld_var);
       ST->insertAfter(ld_copy);
-      instToStackVarMap[ld_copy] = var;
+      instToStackVarMap[ld_copy] = ld_var;
       //errs() << ""
       
+      //RedoBB
       for(std::vector<Instruction*>::iterator it = deps.begin(); it!= deps.end();++it){
-          //errs() << " instruction " << **it << "\n";
+          errs() << " dep instruction " << **it << "\n";
           Instruction *dep = *it;
           AllocaInst *stack_var = new AllocaInst(Type::getInt32Ty(entry.getContext()), "StackVars", entry.getTerminator());
           StoreInst *S = new StoreInst(dep, stack_var);
           S->insertAfter(dep);
+          instToStackVarMap[dep] = stack_var;
+          StSVList.push_back(S);
 
           Instruction *dep_copy = (*it)->clone();
           dep_copy->insertBefore(RedoBB->getTerminator()) ;
-          AllocaInst *var_alloc = new AllocaInst(Type::getInt32Ty(entry.getContext()), "StackVars_Redo", entry.getTerminator());
-          S = new StoreInst(dep_copy, var_alloc);
+	        StoreInst *st_alloc = new StoreInst(dep_copy, stack_var);
 
-          S->insertAfter(dep_copy);
-      }    
+          st_alloc->insertAfter(dep_copy);
+          instToStackVarMap[dep_copy] = stack_var;
+
+      }  
+    for(std::map<Instruction*, Instruction*>::iterator INST = instToStackVarMap.begin();INST != instToStackVarMap.end();++INST) {
+      errs() << " Inst " << *(INST->first) << " **stack vars** " << *(INST->second) << "\n";
+    }   
     /* 
     for(BasicBlock::iterator ii = RedoBB->begin(); ii != RedoBB->end();++ii){
        errs() << "RedoBB inst " << *ii << "\n";
